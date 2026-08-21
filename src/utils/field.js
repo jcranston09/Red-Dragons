@@ -67,21 +67,76 @@ export function nearestPlayer(point, players, maxDist = 6) {
   return best;
 }
 
+function slot(position, label, xYard, dy, team = "offense") {
+  return {
+    id: `off-${String(position).toLowerCase()}`,
+    position,
+    label,
+    team,
+    xYard,
+    dy,
+  };
+}
+
+/** Rebuild absolute field % coords from a formation alignment at the current LOS. */
+export function playersFromAlignment(alignment, losYard) {
+  return (alignment ?? []).map((entry) => ({
+    id: entry.id || `off-${String(entry.position).toLowerCase()}`,
+    position: entry.position,
+    label: entry.label,
+    team: entry.team ?? "offense",
+    ...toPct(entry.xYard, losYard + entry.dy),
+  }));
+}
+
+/** Snapshot current tokens as offsets from the LOS so the look works at any ball spot. */
+export function alignmentFromPlayers(players, losYard) {
+  return players.map((p) => {
+    const { xYard, yardFromOwnGoal } = pctToYards(p.x, p.y);
+    return {
+      id: p.id,
+      position: p.position,
+      label: p.label,
+      team: p.team,
+      xYard,
+      dy: yardFromOwnGoal - losYard,
+    };
+  });
+}
+
+export function shiftPlayersByYards(players, deltaYards) {
+  return players.map((p) => {
+    const { xYard, yardFromOwnGoal } = pctToYards(p.x, p.y);
+    return { ...p, ...toPct(xYard, yardFromOwnGoal + deltaYards) };
+  });
+}
+
+export function shiftPathsByYards(paths, deltaYards) {
+  return paths.map((path) => ({
+    ...path,
+    points: path.points.map((pt) => {
+      const { xYard, yardFromOwnGoal } = pctToYards(pt.x, pt.y);
+      return toPct(xYard, yardFromOwnGoal + deltaYards);
+    }),
+  }));
+}
+
 function player(id, position, label, xYard, yYard, team = "offense") {
   return { id, position, label, team, ...toPct(xYard, yYard) };
 }
 
+export const SPREAD_ALIGNMENT = [
+  slot("C", "C", 15, 0),
+  slot("WR1", "WR1", 2.8, 0),
+  slot("WR2", "WR2", 27.2, 0),
+  slot("QB", "COACH QB", 15, -1),
+  slot("RB", "RB", 11.2, -2.4),
+  slot("WR3", "WR3", 20.6, -1.1),
+];
+
 /** Standard Kinder 6-player look: 3 on the LOS (C + two WRs), Coach QB in the 1x1 pocket. */
 export function defaultOffense(losYard = 5) {
-  const los = losYard;
-  return [
-    player("off-c", "C", "C", 15, los),
-    player("off-wr1", "WR1", "WR1", 3.5, los),
-    player("off-wr2", "WR2", "WR2", 26.5, los),
-    player("off-qb", "QB", "COACH QB", 15, los - 1),
-    player("off-rb", "RB", "RB", 11.5, los - 2.2),
-    player("off-wr3", "WR3", "WR3", 20.8, los - 1),
-  ];
+  return playersFromAlignment(SPREAD_ALIGNMENT, losYard);
 }
 
 export function defaultDefense(losYard = 5) {
@@ -96,66 +151,73 @@ export function defaultDefense(losYard = 5) {
   ];
 }
 
-export const FORMATIONS = {
-  spread: {
+export const STOCK_FORMATIONS = [
+  {
     id: "spread",
     name: "Spread (3 on LOS)",
-    blurb: "C + WR1 + WR2 on the line. Slot WR3. RB offset. Legal Kinder look.",
-    players: (los) => defaultOffense(los),
+    blurb: "WRs split both sidelines. C + WR1 + WR2 on the line. Slot WR3. RB offset.",
+    builtin: true,
+    alignment: SPREAD_ALIGNMENT,
   },
-  tripsRight: {
+  {
     id: "tripsRight",
     name: "Trips Right",
-    blurb: "C, TE, and backside WR on the LOS. Two receivers stacked right.",
-    players: (los) => [
-      player("off-c", "C", "C", 14.2, los),
-      player("off-wr1", "WR1", "WR1", 3.2, los),
-      player("off-wr2", "WR2", "WR2", 22.5, los),
-      player("off-qb", "QB", "COACH QB", 14.2, los - 1),
-      player("off-rb", "RB", "RB", 11, los - 2),
-      player("off-wr3", "WR3", "WR3", 26.8, los - 0.8),
+    blurb: "All three WRs to the right. C + two trips WRs on the LOS.",
+    builtin: true,
+    alignment: [
+      slot("C", "C", 12.5, 0),
+      slot("WR1", "WR1", 21.2, 0),
+      slot("WR2", "WR2", 24.6, 0),
+      slot("QB", "COACH QB", 12.5, -1),
+      slot("RB", "RB", 9.2, -2.2),
+      slot("WR3", "WR3", 27.6, -0.9),
     ],
   },
-  tripsLeft: {
+  {
     id: "tripsLeft",
     name: "Trips Left",
-    blurb: "Mirror trips. Puts three 5-6 year olds on one side for a simple 'run that way' call.",
-    players: (los) => [
-      player("off-c", "C", "C", 15.8, los),
-      player("off-wr1", "WR1", "WR1", 7.5, los),
-      player("off-wr2", "WR2", "WR2", 26.8, los),
-      player("off-qb", "QB", "COACH QB", 15.8, los - 1),
-      player("off-rb", "RB", "RB", 19, los - 2),
-      player("off-wr3", "WR3", "WR3", 3.2, los - 0.8),
+    blurb: "Mirror trips. Three kids on the left — one-word call: 'that way'.",
+    builtin: true,
+    alignment: [
+      slot("C", "C", 17.5, 0),
+      slot("WR1", "WR1", 8.8, 0),
+      slot("WR2", "WR2", 5.4, 0),
+      slot("QB", "COACH QB", 17.5, -1),
+      slot("RB", "RB", 20.8, -2.2),
+      slot("WR3", "WR3", 2.4, -0.9),
     ],
   },
-  bunchRight: {
+  {
     id: "bunchRight",
     name: "Bunch Right",
-    blurb: "Tight cluster — kids only need to remember 'stay together, then go'.",
-    players: (los) => [
-      player("off-c", "C", "C", 13.5, los),
-      player("off-wr1", "WR1", "WR1", 3.5, los),
-      player("off-wr2", "WR2", "WR2", 21.2, los),
-      player("off-qb", "QB", "COACH QB", 13.5, los - 1),
-      player("off-rb", "RB", "RB", 10.5, los - 2),
-      player("off-wr3", "WR3", "WR3", 24.2, los - 0.7),
+    blurb: "Tight cluster on the right. Kids remember 'stay together, then go'.",
+    builtin: true,
+    alignment: [
+      slot("C", "C", 12, 0),
+      slot("WR1", "WR1", 19.6, 0),
+      slot("WR2", "WR2", 21.8, 0),
+      slot("QB", "COACH QB", 12, -1),
+      slot("RB", "RB", 8.8, -2.2),
+      slot("WR3", "WR3", 23.4, -0.9),
     ],
   },
-  iBack: {
+  {
     id: "iBack",
     name: "I-Back (Run)",
-    blurb: "RB directly behind Coach QB for dive / draw. Still 3 on the LOS.",
-    players: (los) => [
-      player("off-c", "C", "C", 15, los),
-      player("off-wr1", "WR1", "WR1", 4, los),
-      player("off-wr2", "WR2", "WR2", 26, los),
-      player("off-qb", "QB", "COACH QB", 15, los - 1),
-      player("off-rb", "RB", "RB", 15, los - 3),
-      player("off-wr3", "WR3", "WR3", 20.5, los - 1),
+    blurb: "RB stacked directly behind Coach QB for dive / draw. Still 3 on the LOS.",
+    builtin: true,
+    alignment: [
+      slot("C", "C", 15, 0),
+      slot("WR1", "WR1", 3.2, 0),
+      slot("WR2", "WR2", 26.8, 0),
+      slot("QB", "COACH QB", 15, -1),
+      slot("RB", "RB", 15, -3.3),
+      slot("WR3", "WR3", 21.2, -1.1),
     ],
   },
-};
+];
+
+export const FORMATIONS = Object.fromEntries(STOCK_FORMATIONS.map((f) => [f.id, f]));
 
 export const BALL_SPOTS = [
   { id: "own5", label: "Own 5 (start of possession)", yard: 5 },

@@ -1,5 +1,6 @@
 import {
   Baby,
+  BookmarkPlus,
   CircleDot,
   Eraser,
   Flag,
@@ -13,6 +14,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useState } from "react";
 import { usePlaybook } from "../PlaybookContext.jsx";
 
 const TOOLS = [
@@ -24,6 +26,7 @@ const TOOLS = [
 
 export default function Sidebar() {
   const pb = usePlaybook();
+  const [formationName, setFormationName] = useState("");
 
   return (
     <aside className="flex h-full flex-col gap-4 overflow-y-auto scrollbar-thin p-4 lg:max-h-[calc(100dvh-5.5rem)]">
@@ -132,20 +135,85 @@ export default function Sidebar() {
 
       <section>
         <h2 className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
-          Kinder formations
+          Formations
         </h2>
-        <div className="flex flex-col gap-1.5">
-          {Object.values(pb.formations).map((f) => (
+        <p className="mb-2 text-[11px] leading-snug text-white/45">
+          Click a look to snap every player to it at the current ball spot. Drag kids, then save that
+          alignment as your own button.
+        </p>
+        <div className="mb-3 rounded-xl border border-white/10 bg-black/30 p-2.5">
+          <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
+            New formation name
+          </label>
+          <div className="mt-1.5 flex gap-2">
+            <input
+              value={formationName}
+              onChange={(e) => setFormationName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (pb.saveFormation(formationName)) setFormationName("");
+                }
+              }}
+              placeholder="e.g. Jet Left"
+              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-dragon-black/80 px-3 py-2 text-sm outline-none ring-dragon-gold/60 focus:ring-2"
+            />
             <button
-              key={f.id}
               type="button"
-              onClick={() => pb.applyFormation(f.id)}
-              className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-left hover:border-dragon-lime/40"
+              onClick={() => {
+                if (pb.saveFormation(formationName)) setFormationName("");
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-dragon-green px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:brightness-110"
             >
-              <div className="text-xs font-bold">{f.name}</div>
-              <div className="text-[10px] text-white/50">{f.blurb}</div>
+              <BookmarkPlus className="h-3.5 w-3.5" />
+              Save
             </button>
-          ))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {pb.formations.map((f) => {
+            const on = pb.activeFormationId === f.id;
+            return (
+              <div
+                key={f.id}
+                className={`flex items-stretch gap-1 rounded-xl border ${
+                  on
+                    ? "border-dragon-gold/60 bg-dragon-gold/15"
+                    : "border-white/10 bg-black/30"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => pb.applyFormation(f.id)}
+                  className="min-w-0 flex-1 px-3 py-2 text-left hover:brightness-110"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs font-bold">{f.name}</div>
+                    {f.builtin ? (
+                      <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/50">
+                        Stock
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-dragon-lime/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-dragon-lime">
+                        Custom
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-white/50">{f.blurb}</div>
+                </button>
+                {!f.builtin ? (
+                  <button
+                    type="button"
+                    onClick={() => pb.deleteFormation(f.id)}
+                    className="px-2 text-white/40 hover:text-red-300"
+                    aria-label={`Delete ${f.name}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </section>
 
