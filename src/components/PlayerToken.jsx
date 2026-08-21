@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 const TEAM_STYLES = {
   offense: {
@@ -15,6 +15,7 @@ export default function PlayerToken({ player, selected, tool, onMove, onSelect, 
   const dragging = useRef(false);
   const origin = useRef({ x: 0, y: 0, px: 0, py: 0 });
   const nodeRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const isCoach = player.position === "QB";
   const style = TEAM_STYLES[player.team] ?? TEAM_STYLES.offense;
@@ -29,6 +30,7 @@ export default function PlayerToken({ player, selected, tool, onMove, onSelect, 
     e.stopPropagation();
     onSelect?.(player.id);
     dragging.current = true;
+    setIsDragging(true);
     origin.current = { x: e.clientX, y: e.clientY, px: player.x, py: player.y };
     e.currentTarget.setPointerCapture(e.pointerId);
   }
@@ -45,6 +47,7 @@ export default function PlayerToken({ player, selected, tool, onMove, onSelect, 
 
   function onPointerUp(e) {
     dragging.current = false;
+    setIsDragging(false);
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
@@ -56,8 +59,8 @@ export default function PlayerToken({ player, selected, tool, onMove, onSelect, 
     <div
       ref={nodeRef}
       className={`absolute z-20 -translate-x-1/2 -translate-y-1/2 touch-none select-none ${
-        tool === "select" ? "" : "pointer-events-none"
-      }`}
+        isDragging ? "" : "transition-[left,top] duration-300 ease-out"
+      } ${tool === "select" ? "" : "pointer-events-none"}`}
       style={{ left: `${player.x}%`, top: `${player.y}%` }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

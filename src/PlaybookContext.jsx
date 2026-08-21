@@ -2,18 +2,23 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   BALL_SPOTS,
   DEFENSE_POSITIONS,
-  FORMATIONS,
   OFFENSE_POSITIONS,
+  STOCK_FORMATIONS,
+  alignmentFromPlayers,
   defaultDefense,
   defaultOffense,
   losYPct,
   nearestPlayer,
   pctToYards,
+  playersFromAlignment,
+  shiftPathsByYards,
+  shiftPlayersByYards,
   uid,
 } from "./utils/field.js";
 
 const STORAGE_KEY = "red-dragons-k-playbook-v1";
 const CURRENT_KEY = "red-dragons-k-current-v1";
+const FORMATIONS_KEY = "red-dragons-k-formations-v1";
 
 const PlaybookContext = createContext(null);
 
@@ -49,6 +54,18 @@ function loadCurrent() {
   }
 }
 
+function loadCustomFormations() {
+  try {
+    const raw = localStorage.getItem(FORMATIONS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((f) => f?.id && f?.name && Array.isArray(f.alignment))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export function PlaybookProvider({ children }) {
   const initial = loadCurrent();
   const [name, setName] = useState(initial?.name ?? "Spread — New Play");
@@ -62,6 +79,9 @@ export function PlaybookProvider({ children }) {
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [savedPlays, setSavedPlays] = useState(loadSaved);
   const [activeSavedId, setActiveSavedId] = useState(initial?.activeSavedId ?? null);
+  const [customFormations, setCustomFormations] = useState(loadCustomFormations);
+  const [activeFormationId, setActiveFormationId] = useState(initial?.activeFormationId ?? "spread");
+  const [lineupRev, setLineupRev] = useState(0);
   const [toast, setToast] = useState(null);
 
   const flash = useCallback((message, tone = "ok") => {
@@ -83,14 +103,25 @@ export function PlaybookProvider({ children }) {
       showDefense,
       paths,
       activeSavedId,
+      activeFormationId,
     };
     localStorage.setItem(CURRENT_KEY, JSON.stringify(snapshot));
-  }, [name, losYard, players, defense, showDefense, paths, activeSavedId]);
+  }, [name, losYard, players, defense, showDefense, paths, activeSavedId, activeFormationId]);
 
   const persistSaved = useCallback((next) => {
     setSavedPlays(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }, []);
+
+  const persistCustomFormations = useCallback((next) => {
+    setCustomFormations(next);
+    localStorage.setItem(FORMATIONS_KEY, JSON.stringify(next));
+  }, []);
+
+  const allFormations = useMemo(
+    () => [...STOCK_FORMATIONS, ...customFormations],
+    [customFormations],
+  );
 
   const allTokens = useMemo(
     () => (showDefense ? [...players, ...defense] : players),
@@ -146,32 +177,105 @@ export function PlaybookProvider({ children }) {
     setSelectedPathId(null);
     setSelectedPlayerId(null);
     setActiveSavedId(null);
+    setActiveFormationId("spread");
+    setLineupRev((n) => n + 1);
     flash("Reset to standard spread formation");
     return next;
   }, [name, flash]);
 
   const applyFormation = useCallback(
     (formationId) => {
-      const f = FORMATIONS[formationId];
-      if (!f) return;
-      setPlayers(f.players(losYard));
+      const f = allFormations.find((item) => item.id === formationId);
+      if (!f) {
+        flash("Could not find that formation", "warn");
+        return;
+      }
+      const nextPlayers = playersFromAlignment(f.alignment, losYard);
+      if (!nextPlayers.length) {
+        flash("That formation has no players to line up", "warn");
+        return;
+      }
+      setPlayers(nextPlayers);
       setDefense(defaultDefense(losYard));
       setPaths([]);
       setSelectedPathId(null);
+      setSelectedPlayerId(null);
+      setActiveFormationId(f.id);
+      setLineupRev((n) => n + 1);
       flash(`Lined up in ${f.name}`);
     },
-    [losYard, flash],
+    [allFormations, losYard, flash],
+  );
+
+  const saveFormation = useCallback(
+    (rawName) => {
+      const playName = String(rawName ?? "").trim();
+      if (!playName) {
+        flash("Name the formation first", "warn");
+        return false;
+      }
+      if (!players.length) {
+        flash("Put players on the field before saving a formation", "warn");
+        return false;
+      }
+      const stockHit = STOCK_FORMATIONS.find(
+        (f) => f.name.toLowerCase() === playName.toLowerCase(),
+      );
+      if (stockHit) {
+        flash("That name is a built-in formation. Pick a different name.", "warn");
+        return false;
+      }
+      const alignment = alignmentFromPlayers(players, losYard);
+      const existing = customFormations.find(
+        (f) => f.name.toLowerCase() === playName.toLowerCase(),
+      );
+      const record = {
+        id: existing?.id ?? uid("formation"),
+        name: playName,
+        blurb: "Custom look saved from the field",
+        builtin: false,
+        alignment,
+        savedAt: new Date().toISOString(),
+      };
+      const next = existing
+        ? customFormations.map((f) => (f.id === existing.id ? record : f))
+        : [...customFormations, record];
+      persistCustomFormations(next);
+      setActiveFormationId(record.id);
+      flash(existing ? `Updated formation “${playName}”` : `Saved formation “${playName}”`);
+      return true;
+    },
+    [players, losYard, customFormations, persistCustomFormations, flash],
+  );
+
+  const deleteFormation = useCallback(
+    (id) => {
+      const target = customFormations.find((f) => f.id === id);
+      if (!target) return;
+      persistCustomFormations(customFormations.filter((f) => f.id !== id));
+      if (activeFormationId === id) setActiveFormationId(null);
+      flash(`Deleted formation “${target.name}”`);
+    },
+    [customFormations, persistCustomFormations, activeFormationId, flash],
   );
 
   const applyBallSpot = useCallback(
     (yard) => {
-      setLosYard(yard);
-      setPlayers(defaultOffense(yard));
-      setDefense(defaultDefense(yard));
-      setPaths([]);
-      flash(`Ball spotted at the ${yard === 21.5 ? "midfield" : `${yard}-yard`} line`);
+      const nextYard = Number(yard);
+      if (Number.isNaN(nextYard)) return;
+      const delta = nextYard - losYard;
+      setLosYard(nextYard);
+      if (delta !== 0) {
+        setPlayers((prev) => shiftPlayersByYards(prev, delta));
+        setPaths((prev) => shiftPathsByYards(prev, delta));
+        setLineupRev((n) => n + 1);
+      }
+      setDefense(defaultDefense(nextYard));
+      const label =
+        nextYard === 21.5 ? "midfield" : `${nextYard}-yard`;
+      flash(`Ball spotted at the ${label} line`);
     },
-    [flash],
+    [losYard, flash],
   );
 
   const savePlay = useCallback(() => {
@@ -218,6 +322,8 @@ export function PlaybookProvider({ children }) {
       setPaths(record.paths ?? []);
       setActiveSavedId(record.id);
       setSelectedPathId(null);
+      setActiveFormationId(null);
+      setLineupRev((n) => n + 1);
       flash(`Loaded “${record.name}”`);
     },
     [savedPlays, flash],
@@ -233,6 +339,8 @@ export function PlaybookProvider({ children }) {
       setPaths(state.paths ?? []);
       setActiveSavedId(null);
       setSelectedPathId(null);
+      setActiveFormationId(null);
+      setLineupRev((n) => n + 1);
       setTool("select");
       flash(`Opened “${state.name}” in the designer`);
     },
@@ -352,6 +460,7 @@ export function PlaybookProvider({ children }) {
     activeSavedId,
     toast,
     allTokens,
+    lineupRev,
     moveToken,
     addPath,
     undoPath,
@@ -359,6 +468,8 @@ export function PlaybookProvider({ children }) {
     deleteSelectedPath,
     resetPlay,
     applyFormation,
+    saveFormation,
+    deleteFormation,
     applyBallSpot,
     savePlay,
     loadPlay,
@@ -367,7 +478,8 @@ export function PlaybookProvider({ children }) {
     addPlayer,
     removePlayer,
     validations,
-    formations: FORMATIONS,
+    formations: allFormations,
+    activeFormationId,
     ballSpots: BALL_SPOTS,
     offensePalette: OFFENSE_POSITIONS,
     defensePalette: DEFENSE_POSITIONS,
