@@ -1,10 +1,12 @@
+import { straightenPath } from "../utils/path.js";
+
 function arrowHead(points) {
   if (points.length < 2) return null;
   const a = points[points.length - 2];
   const b = points[points.length - 1];
   const angle = Math.atan2(b.y - a.y, b.x - a.x);
-  const len = 2.1;
-  const w = 1.15;
+  const len = 3.8;
+  const w = 2.15;
   const x1 = b.x - len * Math.cos(angle) + w * Math.sin(angle);
   const y1 = b.y - len * Math.sin(angle) - w * Math.cos(angle);
   const x2 = b.x - len * Math.cos(angle) - w * Math.sin(angle);
@@ -17,9 +19,9 @@ function toPoints(pts) {
 }
 
 const PATH_STYLE = {
-  route: { stroke: "#f5d90a", dash: undefined, width: 0.85 },
-  run: { stroke: "#ffffff", dash: "1.6 1.1", width: 0.75 },
-  motion: { stroke: "#7dd3fc", dash: "0.5 1.15", width: 0.7 },
+  route: { stroke: "#f5d90a", dash: undefined, width: 2.35 },
+  run: { stroke: "#ffffff", dash: "3.4 2.4", width: 2.15 },
+  motion: { stroke: "#7dd3fc", dash: "1.1 2.3", width: 2.05 },
 };
 
 export default function DrawingCanvas({ paths, draft, selectedPathId, onSelectPath }) {
@@ -34,24 +36,25 @@ export default function DrawingCanvas({ paths, draft, selectedPathId, onSelectPa
       {live.map((path) => {
         const style = PATH_STYLE[path.type] ?? PATH_STYLE.route;
         const selected = path.id === selectedPathId;
+        const pts = path.id === "draft" ? path.points ?? [] : straightenPath(path.points);
         return (
           <g key={path.id}>
             <polyline
-              points={toPoints(path.points)}
+              points={toPoints(pts)}
               fill="none"
               stroke={selected ? "#ffffff" : style.stroke}
-              strokeWidth={selected ? style.width + 0.35 : style.width}
+              strokeWidth={selected ? style.width + 0.45 : style.width}
               strokeDasharray={style.dash}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
+              strokeLinecap="butt"
+              strokeLinejoin="miter"
+              strokeMiterlimit="3"
             />
             {path.id !== "draft" ? (
               <polyline
-                points={toPoints(path.points)}
+                points={toPoints(pts)}
                 fill="none"
                 stroke="transparent"
-                strokeWidth="6"
+                strokeWidth="8"
                 className="pointer-events-auto cursor-pointer"
                 onPointerDown={(e) => {
                   e.stopPropagation();
@@ -59,9 +62,18 @@ export default function DrawingCanvas({ paths, draft, selectedPathId, onSelectPa
                 }}
               />
             ) : null}
-            {path.points.length >= 2 ? (
+            {pts.slice(1, -1).map((pt, i) => (
+              <circle
+                key={`${path.id}-v-${i}`}
+                cx={pt.x}
+                cy={pt.y}
+                r="1.15"
+                fill={selected ? "#ffffff" : style.stroke}
+              />
+            ))}
+            {pts.length >= 2 ? (
               <polygon
-                points={arrowHead(path.points)}
+                points={arrowHead(pts)}
                 fill={selected ? "#ffffff" : style.stroke}
               />
             ) : null}

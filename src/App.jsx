@@ -36,9 +36,20 @@ export default function App() {
   function onDrawMove(point) {
     setDraft((prev) => {
       if (!prev) return prev;
+      const start = prev.points.length <= 1 ? prev.points : prev.points.slice(0, -1);
+      const next = { ...prev, points: [...start, point] };
+      draftRef.current = next;
+      return next;
+    });
+  }
+
+  function onDrawCut() {
+    setDraft((prev) => {
+      if (!prev || prev.points.length < 2) return prev;
       const last = prev.points[prev.points.length - 1];
-      if (Math.hypot(point.x - last.x, point.y - last.y) < 0.4) return prev;
-      const next = { ...prev, points: [...prev.points, point] };
+      const prior = prev.points[prev.points.length - 2];
+      if (Math.hypot(last.x - prior.x, last.y - prior.y) < 1.2) return prev;
+      const next = { ...prev, points: [...prev.points, { ...last }] };
       draftRef.current = next;
       return next;
     });
@@ -116,6 +127,7 @@ export default function App() {
                     onRemove={pb.removePlayer}
                     onDrawStart={onDrawStart}
                     onDrawMove={onDrawMove}
+                    onDrawCut={onDrawCut}
                     onDrawEnd={onDrawEnd}
                   />
                 ))}

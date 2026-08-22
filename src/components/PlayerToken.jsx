@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { DRAW_MOVE_SLOP_PX, HOLD_TO_DRAW_MS } from "../data/tools.js";
+import { CUT_PAUSE_MS, CUT_SLOP_PX, DRAW_MOVE_SLOP_PX, HOLD_TO_DRAW_MS } from "../data/tools.js";
 import { pointOnField } from "../utils/pointer.js";
 
 const TEAM_STYLES = {
@@ -23,6 +23,7 @@ export default function PlayerToken({
   onRemove,
   onDrawStart,
   onDrawMove,
+  onDrawCut,
   onDrawEnd,
 }) {
   const nodeRef = useRef(null);
@@ -46,6 +47,14 @@ export default function PlayerToken({
     setHolding(false);
   }
 
+  function clearCut() {
+    const g = gesture.current;
+    if (g?.cutTimer) {
+      clearTimeout(g.cutTimer);
+      g.cutTimer = null;
+    }
+  }
+
   function onPointerDown(e) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     e.preventDefault();
@@ -64,6 +73,9 @@ export default function PlayerToken({
       moved: false,
       fromHandle: false,
       holdTimer: null,
+      cutTimer: null,
+      lastX: e.clientX,
+      lastY: e.clientY,
     };
     gesture.current = g;
     setIsDragging(true);
@@ -103,6 +115,9 @@ export default function PlayerToken({
       moved: false,
       fromHandle: true,
       holdTimer: null,
+      cutTimer: null,
+      lastX: e.clientX,
+      lastY: e.clientY,
     };
     setIsDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -119,6 +134,18 @@ export default function PlayerToken({
       const pt = pointOnField(e, fieldEl());
       g.drawing = true;
       onDrawMove?.(pt);
+      const travel = Math.hypot(e.clientX - g.lastX, e.clientY - g.lastY);
+      if (travel > CUT_SLOP_PX) {
+        clearCut();
+        g.lastX = e.clientX;
+        g.lastY = e.clientY;
+      } else if (!g.cutTimer) {
+        g.cutTimer = setTimeout(() => {
+          if (!gesture.current) return;
+          gesture.current.cutTimer = null;
+          onDrawCut?.();
+        }, CUT_PAUSE_MS);
+      }
       return;
     }
 
@@ -136,6 +163,7 @@ export default function PlayerToken({
     if (g && e.pointerId !== g.pointerId) return;
     const drawing = Boolean(g?.drawing || (g?.armed && g?.moved));
     clearHold();
+    clearCut();
     if (drawing) onDrawEnd?.();
     gesture.current = null;
     setIsDragging(false);

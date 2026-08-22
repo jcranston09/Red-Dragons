@@ -15,6 +15,7 @@ import {
   shiftPlayersByYards,
   uid,
 } from "./utils/field.js";
+import { straightenPath } from "./utils/path.js";
 
 const STORAGE_KEY = "red-dragons-k-playbook-v1";
 const CURRENT_KEY = "red-dragons-k-current-v1";
@@ -138,12 +139,14 @@ export function PlaybookProvider({ children }) {
 
   const addPath = useCallback((type, points, startPoint) => {
     if (!points || points.length < 2) return;
-    const anchor = nearestPlayer(startPoint ?? points[0], allTokens, 8);
+    const straight = straightenPath(points);
+    if (straight.length < 2) return;
+    const anchor = nearestPlayer(startPoint ?? straight[0], allTokens, 8);
     const next = {
       id: uid("path"),
       type,
       playerId: anchor?.id ?? null,
-      points,
+      points: straight,
     };
     setPaths((prev) => [...prev, next]);
     setSelectedPathId(next.id);
