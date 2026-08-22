@@ -74,7 +74,7 @@ export function PlaybookProvider({ children }) {
   const [defense, setDefense] = useState(initial?.defense ?? defaultDefense(5));
   const [showDefense, setShowDefense] = useState(initial?.showDefense ?? false);
   const [paths, setPaths] = useState(initial?.paths ?? []);
-  const [tool, setTool] = useState("select");
+  const [tool, setTool] = useState("route");
   const [selectedPathId, setSelectedPathId] = useState(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [savedPlays, setSavedPlays] = useState(loadSaved);
@@ -341,7 +341,6 @@ export function PlaybookProvider({ children }) {
       setSelectedPathId(null);
       setActiveFormationId(null);
       setLineupRev((n) => n + 1);
-      setTool("select");
       flash(`Opened “${state.name}” in the designer`);
     },
     [flash],

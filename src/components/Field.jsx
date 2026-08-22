@@ -25,9 +25,10 @@ export default function Field({ fieldRef, children, losYard }) {
   return (
     <div
       ref={fieldRef}
-      className="field-frame relative mx-auto aspect-[30/53] w-full max-w-[min(100%,calc(100dvh-11rem))] overflow-hidden rounded-[10px] turf-bg"
+      className="field-frame relative mx-auto w-full aspect-[30/53] overflow-hidden rounded-[10px] turf-bg max-w-[min(100%,calc((100dvh-9rem)*30/53))] landscape:max-w-none landscape:w-full landscape:max-h-none"
       role="application"
       aria-label="DYF 6v6 flag football field, 30 yards by 53 yards"
+      onContextMenu={(e) => e.preventDefault()}
     >
       <svg
         viewBox="0 0 300 530"

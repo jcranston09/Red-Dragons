@@ -1,35 +1,25 @@
 import {
   Baby,
   BookmarkPlus,
-  CircleDot,
-  Eraser,
-  Flag,
-  Hand,
   Plus,
   RotateCcw,
   Save,
-  Spline,
   Trash2,
   Undo2,
+  Eraser,
   Users,
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { DRAW_TOOLS } from "../data/tools.js";
 import { usePlaybook } from "../PlaybookContext.jsx";
-
-const TOOLS = [
-  { id: "select", label: "Move", hint: "Drag players", icon: Hand },
-  { id: "route", label: "Route", hint: "Solid pass route", icon: Spline },
-  { id: "run", label: "Run / pitch", hint: "Dashed handoff or toss", icon: CircleDot },
-  { id: "motion", label: "Motion", hint: "One player pre-snap", icon: Flag },
-];
 
 export default function Sidebar() {
   const pb = usePlaybook();
   const [formationName, setFormationName] = useState("");
 
   return (
-    <aside className="flex h-full flex-col gap-4 overflow-y-auto scrollbar-thin p-4 lg:max-h-[calc(100dvh-5.5rem)]">
+    <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto scrollbar-thin p-3 pb-[max(1rem,env(safe-area-inset-bottom))] landscape:h-full landscape:border-l landscape:border-white/10 sm:p-4">
       <section className="rounded-2xl border border-white/10 bg-black/35 p-3">
         <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-dragon-lime/80">
           Play name
@@ -62,10 +52,10 @@ export default function Sidebar() {
 
       <section>
         <h2 className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
-          Drawing tools
+          Line to draw
         </h2>
-        <div className="grid grid-cols-2 gap-2">
-          {TOOLS.map((t) => {
+        <div className="grid grid-cols-3 gap-2">
+          {DRAW_TOOLS.map((t) => {
             const Icon = t.icon;
             const on = pb.tool === t.id;
             return (
@@ -73,14 +63,14 @@ export default function Sidebar() {
                 key={t.id}
                 type="button"
                 onClick={() => pb.setTool(t.id)}
-                className={`rounded-xl border px-3 py-2 text-left transition ${
+                className={`rounded-xl border px-2 py-2 text-left transition ${
                   on
                     ? "border-dragon-gold bg-dragon-gold/15 text-dragon-gold"
                     : "border-white/10 bg-black/30 hover:border-white/25"
                 }`}
               >
                 <Icon className="mb-1 h-4 w-4" />
-                <div className="text-xs font-bold">{t.label}</div>
+                <div className="text-[11px] font-bold leading-tight">{t.label}</div>
                 <div className="text-[10px] text-white/50">{t.hint}</div>
               </button>
             );
@@ -110,9 +100,9 @@ export default function Sidebar() {
           </button>
         </div>
         <p className="mt-2 text-[11px] leading-snug text-white/45">
-          DYF has no blocking. Use <span className="text-white/80">Run / pitch</span> for handoffs and
-          laterals, <span className="text-white/80">Motion</span> for one pre-snap mover,{" "}
-          <span className="text-white/80">Route</span> for pass paths. Click a line to select it.
+          Drag a player to move — that never draws a line. To draw a route, run, or motion: tap the
+          player, tap again and hold until it pulses, then drag. You can also drag the gold Draw
+          pill. DYF has no blocking; dashed lines are tosses and motion only.
         </p>
       </section>
 

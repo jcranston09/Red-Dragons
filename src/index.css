@@ -9,7 +9,13 @@
 html,
 body,
 #root {
+  height: 100%;
   min-height: 100%;
+  min-height: 100dvh;
+}
+
+html {
+  touch-action: manipulation;
 }
 
 body {
@@ -17,6 +23,8 @@ body {
   background: #07140c;
   color: #f4f7f4;
   font-family: "DM Sans", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
 /* Subtle turf noise without extra assets */
@@ -36,6 +44,56 @@ body {
     inset 0 0 0 3px #f5f5f5,
     inset 0 0 0 10px #14532d,
     0 24px 60px rgba(0, 0, 0, 0.45);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.field-stage {
+  -webkit-overflow-scrolling: touch;
+}
+
+.safe-header {
+  padding-top: max(0.35rem, env(safe-area-inset-top));
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.safe-toast {
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  right: max(1rem, env(safe-area-inset-right));
+}
+
+.hold-pulse {
+  animation: hold-pulse 380ms ease-out forwards;
+}
+
+.hold-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 3px solid #f5d90a;
+  animation: hold-ring 380ms linear forwards;
+  pointer-events: none;
+}
+
+@keyframes hold-pulse {
+  from {
+    transform: scale(1.1);
+  }
+  to {
+    transform: scale(1.22);
+  }
+}
+
+@keyframes hold-ring {
+  from {
+    transform: scale(0.72);
+    opacity: 0.15;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .scrollbar-thin::-webkit-scrollbar {
@@ -47,4 +105,10 @@ body {
 }
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
+}
+
+@media (orientation: landscape) {
+  .safe-toast {
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
 }
