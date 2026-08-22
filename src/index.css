@@ -49,7 +49,7 @@ body {
 }
 
 .field-stage {
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
 }
 
 .safe-header {

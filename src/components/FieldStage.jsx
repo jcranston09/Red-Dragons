@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-import { losYPct } from "../utils/field.js";
 
-export default function FieldStage({ fieldRef, losYard, lockScroll, children }) {
+const FIELD_ASPECT = 30 / 53;
+
+export default function FieldStage({ fieldRef, children }) {
   const stageRef = useRef(null);
 
   useEffect(() => {
@@ -9,30 +10,41 @@ export default function FieldStage({ fieldRef, losYard, lockScroll, children }) 
     const field = fieldRef.current;
     if (!stage || !field) return;
 
-    const scrollToLos = () => {
-      if (field.offsetHeight < 80) return;
-      const y = (losYPct(losYard) / 100) * field.offsetHeight;
-      stage.scrollTo({
-        top: Math.max(0, y - stage.clientHeight * 0.68),
-        left: 0,
-        behavior: "auto",
-      });
+    const fit = () => {
+      const pad = 8;
+      const availableW = Math.max(0, stage.clientWidth - pad);
+      const availableH = Math.max(0, stage.clientHeight - pad);
+      if (availableW < 2 || availableH < 2) return;
+
+      let width = availableW;
+      let height = width / FIELD_ASPECT;
+      if (height > availableH) {
+        height = availableH;
+        width = height * FIELD_ASPECT;
+      }
+
+      field.style.width = `${Math.floor(width)}px`;
+      field.style.height = `${Math.floor(height)}px`;
+      field.style.maxWidth = "none";
+      field.style.maxHeight = "none";
     };
 
-    const frame = requestAnimationFrame(scrollToLos);
-    const timer = setTimeout(scrollToLos, 120);
+    fit();
+    const frame = requestAnimationFrame(fit);
+    const observer = new ResizeObserver(fit);
+    observer.observe(stage);
+    window.addEventListener("orientationchange", fit);
     return () => {
       cancelAnimationFrame(frame);
-      clearTimeout(timer);
+      observer.disconnect();
+      window.removeEventListener("orientationchange", fit);
     };
-  }, [fieldRef, losYard]);
+  }, [fieldRef]);
 
   return (
     <section
       ref={stageRef}
-      className={`field-stage min-h-0 flex-1 overscroll-y-contain px-2 py-2 landscape:px-2 landscape:py-1 ${
-        lockScroll ? "overflow-hidden" : "overflow-auto"
-      }`}
+      className="field-stage flex min-h-0 flex-1 items-center justify-center overflow-hidden px-1 py-1"
     >
       {children}
     </section>

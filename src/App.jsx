@@ -138,11 +138,11 @@ export default function App() {
                 <Trash2 className="h-3 w-3" /> Clear
               </button>
             </div>
-            <p className="px-3 pb-1 text-[11px] leading-snug text-white/55 landscape:text-[10px]">
+            <p className="shrink-0 px-3 pb-1 text-[11px] leading-snug text-white/55 landscape:hidden">
               Drag a player to move. To draw: tap once to select, tap again and hold, then drag.
               Or drag the gold <span className="text-dragon-gold font-semibold">Draw</span> pill.
             </p>
-            <FieldStage fieldRef={fieldRef} losYard={pb.losYard} lockScroll={Boolean(draft)}>
+            <FieldStage fieldRef={fieldRef}>
               <Field fieldRef={fieldRef} losYard={pb.losYard}>
                 <DrawingCanvas
                   paths={pb.paths}
