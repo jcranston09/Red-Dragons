@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { BookOpen, Check, CornerDownRight, Eraser, Lightbulb, PanelRight, PenLine, Trash2, Undo2, X } from "lucide-react";
+import { BookOpen, Check, CornerDownRight, Eraser, PanelRight, PenLine, Route, Trash2, Undo2, X } from "lucide-react";
 import Field from "./components/Field.jsx";
 import FieldStage from "./components/FieldStage.jsx";
 import PlayerToken from "./components/PlayerToken.jsx";
@@ -14,7 +14,7 @@ import { DRAW_TOOLS } from "./data/tools.js";
 const TABS = [
   { id: "designer", label: "Play designer", icon: PenLine },
   { id: "rules", label: "Coach rules", icon: BookOpen },
-  { id: "plays", label: "Suggested plays", icon: Lightbulb },
+  { id: "routes", label: "Routes", icon: Route },
 ];
 
 export default function App() {
@@ -260,7 +260,7 @@ export default function App() {
           <RulesTab />
         </div>
       ) : null}
-      {tab === "plays" ? (
+      {tab === "routes" ? (
         <div className="min-h-0 flex-1 overflow-auto">
           <SuggestionsTab onOpenDesigner={() => setTab("designer")} />
         </div>

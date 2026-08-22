@@ -1,4 +1,5 @@
 import { FIELD_WIDTH_YARDS, pctToYards, toPct } from "../utils/field.js";
+import { startAtTokenEdge } from "../utils/path.js";
 
 /**
  * Kinder route tree. Catalog cards use absolute yard marks (x 0–30, down from LOS).
@@ -48,6 +49,7 @@ export const ROUTE_TREE = [
     name: "5-Yard Stop",
     shortName: "5-Yd Stop",
     also: "Hitch",
+    endCap: "circle",
     player: { label: "WR", x: 21, behind: 0 },
     type: "route",
     points: [
@@ -179,11 +181,11 @@ export function applyRouteToPlayer(player, route) {
   const { xYard, yardFromOwnGoal } = pctToYards(player.x, player.y);
   const side = route.mirror === false ? 1 : xYard < FIELD_WIDTH_YARDS / 2 ? -1 : 1;
   const steps = route.relative ?? [{ dx: 0, down: 0 }];
-  return steps.map(({ dx, down }) => {
-    const x = clamp(xYard + dx * side, 0.8, FIELD_WIDTH_YARDS - 0.8);
-    const y = clamp(yardFromOwnGoal + down, -4.5, 47);
-    return toPct(x, y);
-  });
+  const yards = steps.map(({ dx, down }) => ({
+    x: clamp(xYard + dx * side, 0.8, FIELD_WIDTH_YARDS - 0.8),
+    y: clamp(yardFromOwnGoal + down, -4.5, 47),
+  }));
+  return startAtTokenEdge(yards, 1.15).map((pt) => toPct(pt.x, pt.y));
 }
 
 export function routeById(id) {

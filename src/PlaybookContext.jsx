@@ -234,6 +234,7 @@ export function PlaybookProvider({ children }) {
         type: route.type === "run" ? "run" : "route",
         playerId,
         routeId: route.id,
+        endCap: route.endCap,
         points,
       };
       setPaths((prev) => [...prev.filter((p) => p.playerId !== playerId), next]);

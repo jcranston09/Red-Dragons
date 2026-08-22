@@ -49,3 +49,23 @@ export function routeArrow(points, { length = 4, width = 2.2, scaleX = 1, scaleY
     head: `${b.x},${b.y} ${x1},${y1} ${x2},${y2}`,
   };
 }
+
+/** Move the first point to the token rim so the line does not draw through the player. */
+export function startAtTokenEdge(points, radius) {
+  if (!points || points.length < 2 || radius <= 0) return points ?? [];
+  const origin = points[0];
+  const next = points[1];
+  const dx = next.x - origin.x;
+  const dy = next.y - origin.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1e-4) return points;
+  const ux = dx / dist;
+  const uy = dy / dist;
+  const start = { x: origin.x + ux * radius, y: origin.y + uy * radius };
+  if (dist > radius + 0.35) {
+    return [start, ...points.slice(1)];
+  }
+  const tail = radius >= 4 ? Math.max(8, radius * 0.45) : 0.55;
+  const end = { x: origin.x + ux * (radius + tail), y: origin.y + uy * (radius + tail) };
+  return [start, end, ...points.slice(2)];
+}

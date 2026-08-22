@@ -80,14 +80,17 @@ export default function DrawingCanvas({
         const style = PATH_STYLE[path.type] ?? PATH_STYLE.route;
         const selected = path.id === selectedPathId;
         const pts = path.id === "draft" ? path.points ?? [] : straightenPath(path.points);
-        const arrow = routeArrow(pts, { length: 2.1, width: 1.15, ...ARROW_SCALE });
+        const stopEnd = path.endCap === "circle" || path.routeId === "stop";
+        const arrow = stopEnd ? { line: pts, head: "" } : routeArrow(pts, { length: 2.1, width: 1.15, ...ARROW_SCALE });
         const linePts = path.id === "draft" ? pts : arrow.line;
+        const tip = pts[pts.length - 1];
+        const ink = selected ? "#ffffff" : style.stroke;
         return (
           <g key={path.id}>
             <polyline
               points={toPoints(linePts)}
               fill="none"
-              stroke={selected ? "#ffffff" : style.stroke}
+              stroke={ink}
               strokeWidth={selected ? style.width + 0.45 : style.width}
               strokeDasharray={style.dash}
               strokeLinecap="butt"
@@ -113,14 +116,13 @@ export default function DrawingCanvas({
                 cx={pt.x}
                 cy={pt.y}
                 r={1.15}
-                fill={selected ? "#ffffff" : style.stroke}
+                fill={ink}
               />
             ))}
-            {path.id !== "draft" && arrow.head ? (
-              <polygon
-                points={arrow.head}
-                fill={selected ? "#ffffff" : style.stroke}
-              />
+            {path.id !== "draft" && stopEnd && tip ? (
+              <circle cx={tip.x} cy={tip.y} r="1.55" fill={ink} stroke="#07140c" strokeWidth="0.35" />
+            ) : path.id !== "draft" && arrow.head ? (
+              <polygon points={arrow.head} fill={ink} />
             ) : null}
           </g>
         );

@@ -23,7 +23,7 @@ export default function SuggestionsTab({ onOpenDesigner }) {
         Kinder route tree • Kindergarten 5–6 • Coach QB
       </p>
       <h1 className="font-display text-4xl font-extrabold uppercase tracking-wide md:text-5xl">
-        Player routes
+        Routes
       </h1>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/70">
         One job per route. In the play designer, tap a kid and pick a name — the line is added

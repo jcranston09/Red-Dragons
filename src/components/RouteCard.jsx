@@ -1,4 +1,4 @@
-import { routeArrow } from "../utils/path.js";
+import { routeArrow, startAtTokenEdge } from "../utils/path.js";
 
 const VIEW_W = 300;
 const VIEW_H = 270;
@@ -17,11 +17,14 @@ function toXY(xYard, down) {
 
 export default function RouteCard({ route }) {
   const start = toXY(route.player.x, -route.player.behind);
-  const pts = route.points.map((p) => toXY(p.x, p.down));
-  const arrow = routeArrow(pts, { length: 16, width: 8 });
+  const rawPts = route.points.map((p) => toXY(p.x, p.down));
+  const pts = startAtTokenEdge(rawPts, PLAYER_R + 3.5);
+  const stopEnd = route.endCap === "circle";
+  const arrow = stopEnd ? { line: pts, head: "" } : routeArrow(pts, { length: 16, width: 8 });
   const pointStr = arrow.line.map((p) => `${p.x},${p.y}`).join(" ");
   const isRun = route.type === "run";
   const color = isRun ? "#ffffff" : "#f5d90a";
+  const tip = pts[pts.length - 1];
 
   return (
     <article
@@ -119,7 +122,11 @@ export default function RouteCard({ route }) {
           {pts.slice(1, -1).map((pt, i) => (
             <circle key={i} cx={pt.x} cy={pt.y} r="3.2" fill={color} />
           ))}
-          {arrow.head ? <polygon points={arrow.head} fill={color} /> : null}
+          {stopEnd && tip ? (
+            <circle cx={tip.x} cy={tip.y} r="8" fill={color} stroke="#07140c" strokeWidth="2" />
+          ) : arrow.head ? (
+            <polygon points={arrow.head} fill={color} />
+          ) : null}
         </svg>
       </div>
       <p className="px-4 py-3 text-center text-sm text-white/75">{route.kidJob}</p>
