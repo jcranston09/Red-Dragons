@@ -1,19 +1,11 @@
 import { useRef } from "react";
-import { straightenPath } from "../utils/path.js";
+import { FIELD_LENGTH_YARDS, FIELD_WIDTH_YARDS } from "../utils/field.js";
+import { routeArrow, straightenPath } from "../utils/path.js";
 
-function arrowHead(points) {
-  if (points.length < 2) return null;
-  const a = points[points.length - 2];
-  const b = points[points.length - 1];
-  const angle = Math.atan2(b.y - a.y, b.x - a.x);
-  const len = 3.8;
-  const w = 2.15;
-  const x1 = b.x - len * Math.cos(angle) + w * Math.sin(angle);
-  const y1 = b.y - len * Math.sin(angle) - w * Math.cos(angle);
-  const x2 = b.x - len * Math.cos(angle) - w * Math.sin(angle);
-  const y2 = b.y - len * Math.sin(angle) + w * Math.cos(angle);
-  return `${b.x},${b.y} ${x1},${y1} ${x2},${y2}`;
-}
+const ARROW_SCALE = {
+  scaleX: FIELD_WIDTH_YARDS / 100,
+  scaleY: FIELD_LENGTH_YARDS / 100,
+};
 
 function toPoints(pts) {
   return pts.map((p) => `${p.x},${p.y}`).join(" ");
@@ -88,10 +80,12 @@ export default function DrawingCanvas({
         const style = PATH_STYLE[path.type] ?? PATH_STYLE.route;
         const selected = path.id === selectedPathId;
         const pts = path.id === "draft" ? path.points ?? [] : straightenPath(path.points);
+        const arrow = routeArrow(pts, { length: 2.1, width: 1.15, ...ARROW_SCALE });
+        const linePts = path.id === "draft" ? pts : arrow.line;
         return (
           <g key={path.id}>
             <polyline
-              points={toPoints(pts)}
+              points={toPoints(linePts)}
               fill="none"
               stroke={selected ? "#ffffff" : style.stroke}
               strokeWidth={selected ? style.width + 0.45 : style.width}
@@ -113,18 +107,18 @@ export default function DrawingCanvas({
                 }}
               />
             ) : null}
-            {pts.slice(1).map((pt, i) => (
+            {pts.slice(1, -1).map((pt, i) => (
               <circle
                 key={`${path.id}-v-${i}`}
                 cx={pt.x}
                 cy={pt.y}
-                r={i === pts.length - 2 ? 1.6 : 1.15}
+                r={1.15}
                 fill={selected ? "#ffffff" : style.stroke}
               />
             ))}
-            {pts.length >= 2 ? (
+            {path.id !== "draft" && arrow.head ? (
               <polygon
-                points={arrowHead(pts)}
+                points={arrow.head}
                 fill={selected ? "#ffffff" : style.stroke}
               />
             ) : null}

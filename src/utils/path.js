@@ -19,3 +19,33 @@ export function straightenPath(points, minAngleDeg = 26, minDist = 1.1) {
   else out[out.length - 1] = last;
   return out;
 }
+
+/**
+ * Arrow at the last point. scaleX/scaleY convert viewBox units to visual units so a
+ * stretched field (100×100 over 30×53) still points along the painted line.
+ * The polyline is trimmed so the tip sits on the true end, not in the thick stroke.
+ */
+export function routeArrow(points, { length = 4, width = 2.2, scaleX = 1, scaleY = 1 } = {}) {
+  if (!points || points.length < 2) return { line: points ?? [], head: "" };
+  const a = points[points.length - 2];
+  const b = points[points.length - 1];
+  const vdx = (b.x - a.x) * scaleX;
+  const vdy = (b.y - a.y) * scaleY;
+  const vis = Math.hypot(vdx, vdy);
+  if (vis < 1e-4) return { line: points, head: "" };
+  const angle = Math.atan2(vdy, vdx);
+  const len = Math.min(length, vis * 0.58);
+  const w = width * (len / length);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const backX = b.x - (len * cos) / scaleX;
+  const backY = b.y - (len * sin) / scaleY;
+  const x1 = backX + (w * sin) / scaleX;
+  const y1 = backY - (w * cos) / scaleY;
+  const x2 = backX - (w * sin) / scaleX;
+  const y2 = backY + (w * cos) / scaleY;
+  return {
+    line: [...points.slice(0, -1), { x: backX, y: backY }],
+    head: `${b.x},${b.y} ${x1},${y1} ${x2},${y2}`,
+  };
+}
