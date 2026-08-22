@@ -3,7 +3,8 @@ import { FIELD_WIDTH_YARDS, pctToYards, toPct } from "../utils/field.js";
 /**
  * Kinder route tree. Catalog cards use absolute yard marks (x 0–30, down from LOS).
  * Designer assignment uses `relative` { dx, down } from the selected player's spot.
- * +dx = toward the near sideline; −dx = toward the middle. Apply flips on the left hash.
+ * +dx = toward the near sideline; −dx = toward the middle. Apply flips on the left hash
+ * unless `mirror` is false (Sweeps keep the direction you picked).
  */
 export const ROUTE_TREE = [
   {
@@ -61,11 +62,33 @@ export const ROUTE_TREE = [
     kidJob: "Run 10 steps, then come back 3 steps toward Coach and look.",
   },
   {
-    id: "wheel",
-    name: "RB Sweep",
-    also: "Wheel",
+    id: "sweep-left",
+    name: "RB Sweep Left",
+    shortName: "Sweep L",
+    also: "Wheel left",
+    player: { label: "RB", x: 17, behind: 2.5 },
+    type: "run",
+    mirror: false,
+    points: [
+      { x: 17, down: -2.5 },
+      { x: 6, down: 0.5 },
+      { x: 3, down: 12 },
+    ],
+    relative: [
+      { dx: 0, down: 0 },
+      { dx: -11, down: 3 },
+      { dx: -14, down: 14.5 },
+    ],
+    kidJob: "Take the toss, run to the left sideline, then turn up the field.",
+  },
+  {
+    id: "sweep-right",
+    name: "RB Sweep Right",
+    shortName: "Sweep R",
+    also: "Wheel right",
     player: { label: "RB", x: 13, behind: 2.5 },
     type: "run",
+    mirror: false,
     points: [
       { x: 13, down: -2.5 },
       { x: 24, down: 0.5 },
@@ -76,7 +99,7 @@ export const ROUTE_TREE = [
       { dx: 11, down: 3 },
       { dx: 14, down: 14.5 },
     ],
-    kidJob: "Take the toss, run to the sideline, then turn up the field.",
+    kidJob: "Take the toss, run to the right sideline, then turn up the field.",
   },
   {
     id: "post",
@@ -141,7 +164,7 @@ function clamp(value, min, max) {
 /** Stamp a named route onto a token. Outs/flats go to the near sideline. */
 export function applyRouteToPlayer(player, route) {
   const { xYard, yardFromOwnGoal } = pctToYards(player.x, player.y);
-  const side = xYard < FIELD_WIDTH_YARDS / 2 ? -1 : 1;
+  const side = route.mirror === false ? 1 : xYard < FIELD_WIDTH_YARDS / 2 ? -1 : 1;
   const steps = route.relative ?? [{ dx: 0, down: 0 }];
   return steps.map(({ dx, down }) => {
     const x = clamp(xYard + dx * side, 0.8, FIELD_WIDTH_YARDS - 0.8);

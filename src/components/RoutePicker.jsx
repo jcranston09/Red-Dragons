@@ -28,7 +28,7 @@ export default function RoutePicker({ player, onPick }) {
             onClick={() => onPick(route.id)}
             className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white hover:bg-dragon-gold hover:text-dragon-black"
           >
-            {route.name}
+            {route.shortName ?? route.name}
           </button>
         ))}
       </div>
