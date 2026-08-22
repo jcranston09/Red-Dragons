@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { BookOpen, Eraser, Lightbulb, PanelRight, PenLine, Trash2, Undo2 } from "lucide-react";
+import { BookOpen, Check, CornerDownRight, Eraser, Lightbulb, PanelRight, PenLine, Trash2, Undo2, X } from "lucide-react";
 import Field from "./components/Field.jsx";
 import FieldStage from "./components/FieldStage.jsx";
 import PlayerToken from "./components/PlayerToken.jsx";
@@ -55,14 +55,27 @@ export default function App() {
     });
   }
 
-  function onDrawEnd() {
+  function clearDraft() {
+    draftRef.current = null;
+    setDraft(null);
+    setDrawArmedId(null);
+  }
+
+  function onDrawRelease() {
+    const current = draftRef.current;
+    if (!current || current.points.length < 2) {
+      clearDraft();
+      return;
+    }
+    onDrawCut();
+  }
+
+  function finishDraft() {
     const current = draftRef.current;
     if (current && current.points.length >= 2) {
       pb.addPath(current.type, current.points, current.points[0]);
     }
-    draftRef.current = null;
-    setDraft(null);
-    setDrawArmedId(null);
+    clearDraft();
   }
 
   return (
@@ -114,6 +127,8 @@ export default function App() {
                   draft={draft}
                   selectedPathId={pb.selectedPathId}
                   onSelectPath={pb.setSelectedPathId}
+                  onExtendMove={onDrawMove}
+                  onExtendPlant={onDrawCut}
                 />
                 {pb.allTokens.map((player) => (
                   <PlayerToken
@@ -122,13 +137,14 @@ export default function App() {
                     selected={pb.selectedPlayerId === player.id}
                     drawArmed={drawArmedId === player.id}
                     drawType={drawType}
+                    suspendPointers={Boolean(draft)}
                     onMove={pb.moveToken}
                     onSelect={pb.setSelectedPlayerId}
                     onRemove={pb.removePlayer}
                     onDrawStart={onDrawStart}
                     onDrawMove={onDrawMove}
                     onDrawCut={onDrawCut}
-                    onDrawEnd={onDrawEnd}
+                    onDrawEnd={onDrawRelease}
                   />
                 ))}
               </Field>
@@ -183,6 +199,34 @@ export default function App() {
                   <PanelRight className="h-3 w-3" /> Menu
                 </button>
               </div>
+              {draft ? (
+                <div className="pointer-events-auto mt-2 flex flex-wrap items-center gap-1.5 rounded-2xl bg-dragon-gold px-2.5 py-2 text-dragon-black shadow-lg">
+                  <p className="mr-auto text-[11px] font-bold leading-tight">
+                    Lift to plant a corner, then drag the next angle. Tap Done when the route is finished.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onDrawCut}
+                    className="inline-flex items-center gap-1 rounded-full bg-black/15 px-2.5 py-1 text-[11px] font-black uppercase"
+                  >
+                    <CornerDownRight className="h-3 w-3" /> Cut
+                  </button>
+                  <button
+                    type="button"
+                    onClick={finishDraft}
+                    className="inline-flex items-center gap-1 rounded-full bg-dragon-black px-2.5 py-1 text-[11px] font-black uppercase text-dragon-gold"
+                  >
+                    <Check className="h-3 w-3" /> Done
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearDraft}
+                    className="inline-flex items-center gap-1 rounded-full bg-black/15 px-2.5 py-1 text-[11px] font-black uppercase"
+                  >
+                    <X className="h-3 w-3" /> Cancel
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
           <div className="hidden h-full w-[22rem] shrink-0 border-l border-white/10 bg-dragon-black xl:block">

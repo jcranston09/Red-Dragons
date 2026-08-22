@@ -18,6 +18,7 @@ export default function PlayerToken({
   selected,
   drawArmed,
   drawType = "route",
+  suspendPointers = false,
   onMove,
   onSelect,
   onRemove,
@@ -181,7 +182,7 @@ export default function PlayerToken({
       ref={nodeRef}
       className={`absolute z-20 -translate-x-1/2 -translate-y-1/2 touch-none select-none ${
         isDragging ? "" : "transition-[left,top] duration-300 ease-out"
-      }`}
+      } ${suspendPointers && !isDragging ? "pointer-events-none" : ""}`}
       style={{ left: `${player.x}%`, top: `${player.y}%` }}
       onContextMenu={(e) => e.preventDefault()}
       onPointerDown={onPointerDown}

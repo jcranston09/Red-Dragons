@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { straightenPath } from "../utils/path.js";
 
 function arrowHead(points) {
@@ -24,14 +25,64 @@ const PATH_STYLE = {
   motion: { stroke: "#7dd3fc", dash: "1.1 2.3", width: 2.05 },
 };
 
-export default function DrawingCanvas({ paths, draft, selectedPathId, onSelectPath }) {
+export default function DrawingCanvas({
+  paths,
+  draft,
+  selectedPathId,
+  onSelectPath,
+  onExtendMove,
+  onExtendPlant,
+}) {
+  const svgRef = useRef(null);
+  const extending = useRef(false);
   const live = draft ? [...paths, { id: "draft", ...draft }] : paths;
+
+  function relPoint(e) {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+  }
+
+  function onPointerDown(e) {
+    if (!draft) return;
+    e.preventDefault();
+    extending.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onExtendMove?.(relPoint(e));
+  }
+
+  function onPointerMove(e) {
+    if (!extending.current) return;
+    onExtendMove?.(relPoint(e));
+  }
+
+  function onPointerUp(e) {
+    if (!extending.current) return;
+    extending.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+    onExtendPlant?.();
+  }
 
   return (
     <svg
+      ref={svgRef}
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
-      className="pointer-events-none absolute inset-0 z-10 h-full w-full touch-none"
+      className={`absolute inset-0 z-10 h-full w-full touch-none ${
+        draft ? "pointer-events-auto cursor-crosshair" : "pointer-events-none"
+      }`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
       {live.map((path) => {
         const style = PATH_STYLE[path.type] ?? PATH_STYLE.route;
@@ -62,12 +113,12 @@ export default function DrawingCanvas({ paths, draft, selectedPathId, onSelectPa
                 }}
               />
             ) : null}
-            {pts.slice(1, -1).map((pt, i) => (
+            {pts.slice(1).map((pt, i) => (
               <circle
                 key={`${path.id}-v-${i}`}
                 cx={pt.x}
                 cy={pt.y}
-                r="1.15"
+                r={i === pts.length - 2 ? 1.6 : 1.15}
                 fill={selected ? "#ffffff" : style.stroke}
               />
             ))}
