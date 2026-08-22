@@ -1,6 +1,8 @@
-import { Ban, Check, Lightbulb, Play, ShieldAlert } from "lucide-react";
-import { PLAY_ANALYSIS, SUGGESTED_PLAYS, playToState } from "../data/suggestedPlays.js";
+import { Play, Route } from "lucide-react";
+import { SUGGESTED_PLAYS, playToState } from "../data/suggestedPlays.js";
+import { ROUTE_TREE } from "../data/routeTree.js";
 import { usePlaybook } from "../PlaybookContext.jsx";
+import RouteCard from "./RouteCard.jsx";
 
 const TYPE_COLOR = {
   run: "bg-emerald-500/20 text-emerald-300",
@@ -18,52 +20,38 @@ export default function SuggestionsTab({ onOpenDesigner }) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 pb-16">
       <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-dragon-gold">
-        Playbook analysis • Kindergarten 5–6 • Coach QB
+        Kinder route tree • Kindergarten 5–6 • Coach QB
       </p>
       <h1 className="font-display text-4xl font-extrabold uppercase tracking-wide md:text-5xl">
-        {PLAY_ANALYSIS.headline}
+        Player routes
       </h1>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/70">{PLAY_ANALYSIS.summary}</p>
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/70">
+        One job per route. In the play designer, tap a kid and pick a name — the line is added
+        from wherever they are lined up. Outs and flats go to the near sideline. Posts and ins
+        cut to the middle.
+      </p>
 
-      <div className="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {PLAY_ANALYSIS.pillars.map((p) => (
-          <article key={p.title} className="rounded-2xl border border-white/10 bg-black/35 p-4">
-            <Lightbulb className="mb-2 h-4 w-4 text-dragon-gold" />
-            <h2 className="font-display text-xl font-bold uppercase">{p.title}</h2>
-            <p className="mt-1 text-sm text-white/65">{p.body}</p>
-          </article>
+      <div className="mb-4 mt-5 flex gap-2 overflow-x-auto pb-1">
+        {ROUTE_TREE.map((route) => (
+          <a
+            key={route.id}
+            href={`#route-${route.id}`}
+            className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white/80 hover:bg-dragon-gold hover:text-dragon-black"
+          >
+            {route.name}
+          </a>
         ))}
       </div>
 
-      <section className="mt-8 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-2xl border border-red-500/25 bg-red-950/20 p-4">
-          <h2 className="mb-3 flex items-center gap-2 font-display text-2xl font-bold uppercase">
-            <Ban className="h-5 w-5 text-red-400" /> Do not install
-          </h2>
-          <ul className="space-y-2">
-            {PLAY_ANALYSIS.avoid.map((item) => (
-              <li key={item} className="flex gap-2 text-sm text-red-100/80">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-black/35 p-4">
-            <h2 className="mb-2 flex items-center gap-2 font-display text-xl font-bold uppercase">
-              <Check className="h-4 w-4 text-dragon-lime" /> Playing-time rotation
-            </h2>
-            <p className="text-sm text-white/70">{PLAY_ANALYSIS.rotation}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-black/35 p-4">
-            <h2 className="mb-2 flex items-center gap-2 font-display text-xl font-bold uppercase">
-              <ShieldAlert className="h-4 w-4 text-yellow-300" /> Defense reminder
-            </h2>
-            <p className="text-sm text-white/70">{PLAY_ANALYSIS.defenseNote}</p>
-          </div>
-        </div>
-      </section>
+      <div className="grid gap-5 md:grid-cols-2">
+        {ROUTE_TREE.map((route) => (
+          <RouteCard key={route.id} route={route} />
+        ))}
+      </div>
+      <p className="mt-4 flex items-center justify-center gap-2 text-[11px] text-white/40">
+        <Route className="h-3.5 w-3.5" />
+        Straight lines only • tap a player in the designer to stamp these on a play
+      </p>
 
       <h2 className="mb-4 mt-10 font-display text-3xl font-extrabold uppercase tracking-wide">
         Suggested plays that fit this rule book

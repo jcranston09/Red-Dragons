@@ -113,9 +113,9 @@ export default function Sidebar({ onClose }) {
           </button>
         </div>
         <p className="mt-2 text-[11px] leading-snug text-white/45">
-          Drag a player to move. To draw: tap, tap-hold, then drag. Lift your finger to plant a
-          corner, drag again for the next angle (slant, post, in). Tap Done when the route is
-          finished. DYF has no blocking; dashed lines are tosses and motion only.
+          Tap a kid, then tap a named route (Flat, Out, Stop…) to stamp it on the play. Drag a
+          player to move. To draw freehand: tap, tap-hold, then drag. Lift to plant a corner.
+          DYF has no blocking; dashed lines are tosses and motion only.
         </p>
       </section>
 

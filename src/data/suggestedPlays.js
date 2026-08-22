@@ -512,48 +512,6 @@ export const SUGGESTED_PLAYS = [
   },
 ];
 
-export const PLAY_ANALYSIS = {
-  headline: "What the 2026 DYF Kindergarten rule book is actually telling you to call",
-  summary:
-    "This is 6v6 on a 30×53 field (5-yard end zones) with an adult Coach Quarterback counting as the sixth offensive player. The kids are 5 and 6. The rules give you unlimited runs, a frozen 1×1 coaching pocket, a 5-second sack count, no blocking, no picks, and no rush until you hand off, fake a handoff, pitch, or throw backwards. The playbook below is built around those constraints — not around 11-on-11 youth football.",
-  pillars: [
-    {
-      title: "Run first — the rule book wants you to",
-      body: "Kindergarten is the only DYF flag division with unlimited runs and no No-Run Zone, including extra points from the 5. Defense must line up 2 yards off the ball and cannot rush until the exchange. A dive and a jet sweep are higher-percentage than any pass a 5-year-old has to catch in traffic.",
-    },
-    {
-      title: "One job per kid",
-      body: "Do not install option routes, hot reads, or mesh. A Kindergartner can remember 'run to the cone and stop' or 'take the ball and run to the sideline.' Every suggested play has a one-sentence job for each of the five kids.",
-    },
-    {
-      title: "Protect the 5-second clock and the pocket",
-      body: "The sack count starts on the snap for every play (1 Mississippi … SACK). Coach QB cannot leave a 1×1 pocket, cannot pump fake, and cannot hide a player. If you fake a handoff, you have released the rush — so fakes are only paired with a throw that is already in the air.",
-    },
-    {
-      title: "Never draw blocking",
-      body: "No blocking, no picks, no leaping, no flag guarding. 'Screens' in this league are just pitches. Receivers who are not getting the ball should clear out or freeze, not contact anyone. Illegal blocking is a spot foul and a loss of down.",
-    },
-    {
-      title: "Stay legal before the snap",
-      body: "3 on the LOS (Center counts), only one player in motion, flags on hips, 35-second play clock. Failed 4th down is a turnover at the spot; a 'punt' gives them the ball at their 5. Script from your own 5 — that is where every series starts.",
-    },
-  ],
-  avoid: [
-    "QB scramble / rollout / bootleg — Coach must stay in the 1×1 pocket.",
-    "Pump fake — illegal in Kinder.",
-    "Center sneak or any handoff to the Center — illegal.",
-    "Throwback to Coach QB — Coach is not eligible.",
-    "Blocking screens, picks, or 'convoy' sweeps.",
-    "Two kids in motion (jet + a shifting TE).",
-    "Complex RPO reads. You have 5 seconds and 5-year-olds.",
-    "Four-verticals hold-the-ball shots. Pre-pick a receiver or don't call Go.",
-  ],
-  rotation:
-    "Every child must play 5 snaps per half. Keep Dive, Spot, and Jet as your 'everybody can run this' package so substitutions do not require a new install. If you go up 16, a Kid QB must enter — practice one Dive and one Hitch with that child as QB.",
-  defenseNote:
-    "You may place defensive X's on the board to teach spacing. Defense starts 2 yards off the LOS. They cannot cross until a handoff, fake handoff, or backward pass. Defensive coach must stand behind the safeties and be out of the play before the snap.",
-};
-
 export function playToState(play) {
   return {
     name: play.name,

@@ -7,6 +7,7 @@ import DrawingCanvas from "./components/DrawingCanvas.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import RulesTab from "./components/RulesTab.jsx";
 import SuggestionsTab from "./components/SuggestionsTab.jsx";
+import RoutePicker from "./components/RoutePicker.jsx";
 import { usePlaybook } from "./PlaybookContext.jsx";
 import { DRAW_TOOLS } from "./data/tools.js";
 
@@ -199,6 +200,12 @@ export default function App() {
                   <PanelRight className="h-3 w-3" /> Menu
                 </button>
               </div>
+              {!draft && pb.selectedPlayerId ? (
+                <RoutePicker
+                  player={pb.allTokens.find((p) => p.id === pb.selectedPlayerId)}
+                  onPick={(routeId) => pb.assignPlayerRoute(pb.selectedPlayerId, routeId)}
+                />
+              ) : null}
               {draft ? (
                 <div className="pointer-events-auto mt-2 flex flex-wrap items-center gap-1.5 rounded-2xl bg-dragon-gold px-2.5 py-2 text-dragon-black shadow-lg">
                   <p className="mr-auto text-[11px] font-bold leading-tight">

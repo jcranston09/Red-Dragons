@@ -16,6 +16,7 @@ import {
   uid,
 } from "./utils/field.js";
 import { straightenPath } from "./utils/path.js";
+import { applyRouteToPlayer, playerCanTakeRoute, routeById } from "./data/routeTree.js";
 
 const STORAGE_KEY = "red-dragons-k-playbook-v1";
 const CURRENT_KEY = "red-dragons-k-current-v1";
@@ -136,6 +137,31 @@ export function PlaybookProvider({ children }) {
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, x: nx, y: ny } : p)));
     setDefense((prev) => prev.map((p) => (p.id === id ? { ...p, x: nx, y: ny } : p)));
   }, []);
+
+  const assignPlayerRoute = useCallback(
+    (playerId, routeId) => {
+      const player = players.find((p) => p.id === playerId);
+      const route = routeById(routeId);
+      if (!player || !route) return;
+      if (!playerCanTakeRoute(player)) {
+        flash("Tap a kid to give them a route — Coach QB is not eligible.", "warn");
+        return;
+      }
+      const points = applyRouteToPlayer(player, route);
+      if (points.length < 2) return;
+      const next = {
+        id: uid("path"),
+        type: route.type === "run" ? "run" : "route",
+        playerId,
+        routeId: route.id,
+        points,
+      };
+      setPaths((prev) => [...prev.filter((p) => p.playerId !== playerId), next]);
+      setSelectedPathId(next.id);
+      flash(`${route.name} added for ${player.label}`);
+    },
+    [players, flash],
+  );
 
   const addPath = useCallback((type, points, startPoint) => {
     if (!points || points.length < 2) return;
@@ -464,6 +490,7 @@ export function PlaybookProvider({ children }) {
     allTokens,
     lineupRev,
     moveToken,
+    assignPlayerRoute,
     addPath,
     undoPath,
     clearPaths,
