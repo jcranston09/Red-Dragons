@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   BALL_SPOTS,
   DEFENSE_POSITIONS,
@@ -17,10 +17,13 @@ import {
 } from "./utils/field.js";
 import { straightenPath } from "./utils/path.js";
 import { applyRouteToPlayer, playerCanTakeRoute, routeById } from "./data/routeTree.js";
+import { markDeleted, mergeTeamDocs, teamDocFingerprint } from "./utils/teamSync.js";
+import { publishTeamDoc, refreshTeamSync, startTeamSync } from "./utils/teamStore.js";
 
 const STORAGE_KEY = "red-dragons-k-playbook-v1";
 const CURRENT_KEY = "red-dragons-k-current-v1";
 const FORMATIONS_KEY = "red-dragons-k-formations-v1";
+const DELETED_KEY = "red-dragons-k-deleted-v1";
 
 const PlaybookContext = createContext(null);
 
@@ -68,6 +71,19 @@ function loadCustomFormations() {
   }
 }
 
+function loadDeleted() {
+  try {
+    const raw = localStorage.getItem(DELETED_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return {
+      plays: parsed?.plays ?? {},
+      formations: parsed?.formations ?? {},
+    };
+  } catch {
+    return { plays: {}, formations: {} };
+  }
+}
+
 export function PlaybookProvider({ children }) {
   const initial = loadCurrent();
   const [name, setName] = useState(initial?.name ?? "Spread — New Play");
@@ -82,9 +98,12 @@ export function PlaybookProvider({ children }) {
   const [savedPlays, setSavedPlays] = useState(loadSaved);
   const [activeSavedId, setActiveSavedId] = useState(initial?.activeSavedId ?? null);
   const [customFormations, setCustomFormations] = useState(loadCustomFormations);
+  const [deletedIds, setDeletedIds] = useState(loadDeleted);
+  const [syncStatus, setSyncStatus] = useState("connecting");
   const [activeFormationId, setActiveFormationId] = useState(initial?.activeFormationId ?? "spread");
   const [lineupRev, setLineupRev] = useState(0);
   const [toast, setToast] = useState(null);
+  const teamRef = useRef({ plays: [], formations: [], deleted: { plays: {}, formations: {} } });
 
   const flash = useCallback((message, tone = "ok") => {
     setToast({ message, tone, id: uid("toast") });
@@ -119,6 +138,67 @@ export function PlaybookProvider({ children }) {
     setCustomFormations(next);
     localStorage.setItem(FORMATIONS_KEY, JSON.stringify(next));
   }, []);
+
+  const persistDeleted = useCallback((next) => {
+    setDeletedIds(next);
+    localStorage.setItem(DELETED_KEY, JSON.stringify(next));
+  }, []);
+
+  useEffect(() => {
+    teamRef.current = {
+      plays: savedPlays,
+      formations: customFormations,
+      deleted: deletedIds,
+      updatedAt: new Date().toISOString(),
+    };
+  }, [savedPlays, customFormations, deletedIds]);
+
+  const commitTeam = useCallback(
+    (nextPlays, nextFormations, nextDeleted = deletedIds) => {
+      persistSaved(nextPlays);
+      persistCustomFormations(nextFormations);
+      persistDeleted(nextDeleted);
+      const doc = {
+        v: 1,
+        updatedAt: new Date().toISOString(),
+        plays: nextPlays,
+        formations: nextFormations,
+        deleted: nextDeleted,
+      };
+      teamRef.current = doc;
+      publishTeamDoc(doc);
+    },
+    [deletedIds, persistSaved, persistCustomFormations, persistDeleted],
+  );
+
+  useEffect(() => {
+    let sawRemote = false;
+    const stop = startTeamSync({
+      onStatus: setSyncStatus,
+      onDoc: (remote) => {
+        sawRemote = true;
+        const merged = mergeTeamDocs(teamRef.current, remote);
+        if (teamDocFingerprint(merged) !== teamDocFingerprint(teamRef.current)) {
+          persistSaved(merged.plays);
+          persistCustomFormations(merged.formations);
+          persistDeleted(merged.deleted);
+        }
+        if (teamDocFingerprint(merged) !== teamDocFingerprint(remote)) {
+          publishTeamDoc({ ...merged, updatedAt: new Date().toISOString() });
+        }
+      },
+    });
+    const boot = setTimeout(() => {
+      const local = teamRef.current;
+      if (!sawRemote && (local.plays.length || local.formations.length)) {
+        publishTeamDoc({ ...local, updatedAt: new Date().toISOString() });
+      }
+    }, 1600);
+    return () => {
+      clearTimeout(boot);
+      stop();
+    };
+  }, [persistSaved, persistCustomFormations, persistDeleted]);
 
   const allFormations = useMemo(
     () => [...STOCK_FORMATIONS, ...customFormations],
@@ -269,23 +349,27 @@ export function PlaybookProvider({ children }) {
       const next = existing
         ? customFormations.map((f) => (f.id === existing.id ? record : f))
         : [...customFormations, record];
-      persistCustomFormations(next);
+      commitTeam(savedPlays, next, deletedIds);
       setActiveFormationId(record.id);
-      flash(existing ? `Updated formation “${playName}”` : `Saved formation “${playName}”`);
+      flash(existing ? `Updated formation “${playName}”` : `Saved formation for every coach`);
       return true;
     },
-    [players, losYard, customFormations, persistCustomFormations, flash],
+    [players, losYard, customFormations, savedPlays, deletedIds, commitTeam, flash],
   );
 
   const deleteFormation = useCallback(
     (id) => {
       const target = customFormations.find((f) => f.id === id);
       if (!target) return;
-      persistCustomFormations(customFormations.filter((f) => f.id !== id));
+      commitTeam(
+        savedPlays,
+        customFormations.filter((f) => f.id !== id),
+        markDeleted(deletedIds, "formations", id),
+      );
       if (activeFormationId === id) setActiveFormationId(null);
       flash(`Deleted formation “${target.name}”`);
     },
-    [customFormations, persistCustomFormations, activeFormationId, flash],
+    [customFormations, savedPlays, deletedIds, commitTeam, activeFormationId, flash],
   );
 
   const applyBallSpot = useCallback(
@@ -322,10 +406,10 @@ export function PlaybookProvider({ children }) {
     const next = activeSavedId
       ? savedPlays.map((p) => (p.id === activeSavedId ? record : p))
       : [record, ...savedPlays];
-    persistSaved(next);
+    commitTeam(next, customFormations, deletedIds);
     setActiveSavedId(record.id);
     setName(playName);
-    flash(activeSavedId ? "Play updated" : "Play saved to this device");
+    flash(activeSavedId ? "Play updated for every coach" : "Play saved — every coach can see it");
   }, [
     name,
     activeSavedId,
@@ -335,7 +419,9 @@ export function PlaybookProvider({ children }) {
     showDefense,
     paths,
     savedPlays,
-    persistSaved,
+    customFormations,
+    deletedIds,
+    commitTeam,
     flash,
   ]);
 
@@ -378,11 +464,11 @@ export function PlaybookProvider({ children }) {
   const deleteSaved = useCallback(
     (id) => {
       const next = savedPlays.filter((p) => p.id !== id);
-      persistSaved(next);
+      commitTeam(next, customFormations, markDeleted(deletedIds, "plays", id));
       if (activeSavedId === id) setActiveSavedId(null);
       flash("Play deleted");
     },
-    [savedPlays, persistSaved, activeSavedId, flash],
+    [savedPlays, customFormations, deletedIds, commitTeam, activeSavedId, flash],
   );
 
   const addPlayer = useCallback(
@@ -504,6 +590,8 @@ export function PlaybookProvider({ children }) {
     loadPlay,
     loadExternalPlay,
     deleteSaved,
+    refreshTeam: refreshTeamSync,
+    syncStatus,
     addPlayer,
     removePlayer,
     validations,

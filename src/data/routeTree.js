@@ -61,6 +61,22 @@ export const ROUTE_TREE = [
     kidJob: "Run 5 yards, stop, and look at Coach.",
   },
   {
+    id: "go",
+    name: "Go",
+    also: "Streak",
+    player: { label: "WR", x: 21, behind: 0 },
+    type: "route",
+    points: [
+      { x: 21, down: 0 },
+      { x: 21, down: 15 },
+    ],
+    relative: [
+      { dx: 0, down: 0 },
+      { dx: 0, down: 15 },
+    ],
+    kidJob: "Run straight as fast as you can. Do not stop. Look back at Coach.",
+  },
+  {
     id: "sweep-left",
     name: "RB Sweep Left",
     shortName: "Sweep L",
