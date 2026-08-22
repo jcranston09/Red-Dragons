@@ -1,8 +1,33 @@
 import { useEffect, useRef } from "react";
+import {
+  ENDZONE_YARDS,
+  FIELD_LENGTH_YARDS,
+  FIELD_WIDTH_YARDS,
+} from "../utils/field.js";
 
-const FIELD_ASPECT = 30 / 53;
+/** Yards behind / ahead of the LOS to keep on screen so tokens stay large. */
+const MIN_BEHIND = 6;
+const MIN_AHEAD = 15;
 
-export default function FieldStage({ fieldRef, children }) {
+function cameraWindow(losYard, visibleYards) {
+  const minYard = -ENDZONE_YARDS;
+  const maxYard = FIELD_LENGTH_YARDS - ENDZONE_YARDS;
+  let behind = Math.min(MIN_BEHIND, losYard - minYard);
+  let near = losYard - behind;
+  let far = near + visibleYards;
+  if (far > maxYard) {
+    far = maxYard;
+    near = far - visibleYards;
+    if (near < minYard) near = minYard;
+  }
+  return { near, far };
+}
+
+function yardToTop(yardFromOwnGoal, fieldHeight) {
+  return (1 - (ENDZONE_YARDS + yardFromOwnGoal) / FIELD_LENGTH_YARDS) * fieldHeight;
+}
+
+export default function FieldStage({ fieldRef, losYard, children }) {
   const stageRef = useRef(null);
 
   useEffect(() => {
@@ -11,22 +36,33 @@ export default function FieldStage({ fieldRef, children }) {
     if (!stage || !field) return;
 
     const fit = () => {
-      const pad = 8;
-      const availableW = Math.max(0, stage.clientWidth - pad);
-      const availableH = Math.max(0, stage.clientHeight - pad);
-      if (availableW < 2 || availableH < 2) return;
+      const stageW = stage.clientWidth;
+      const stageH = stage.clientHeight;
+      if (stageW < 8 || stageH < 8) return;
 
-      let width = availableW;
-      let height = width / FIELD_ASPECT;
-      if (height > availableH) {
-        height = availableH;
-        width = height * FIELD_ASPECT;
+      const minVisible = MIN_BEHIND + MIN_AHEAD;
+      let yardPx = stageW / FIELD_WIDTH_YARDS;
+      let visibleYards = stageH / yardPx;
+
+      if (visibleYards < minVisible) {
+        yardPx = stageH / minVisible;
+        visibleYards = minVisible;
       }
 
-      field.style.width = `${Math.floor(width)}px`;
-      field.style.height = `${Math.floor(height)}px`;
+      const fieldW = FIELD_WIDTH_YARDS * yardPx;
+      const fieldH = FIELD_LENGTH_YARDS * yardPx;
+      const { far } = cameraWindow(losYard, visibleYards);
+      const translateX = (stageW - fieldW) / 2;
+      const translateY = -yardToTop(far, fieldH);
+
+      field.style.position = "absolute";
+      field.style.left = "0px";
+      field.style.top = "0px";
+      field.style.width = `${Math.round(fieldW)}px`;
+      field.style.height = `${Math.round(fieldH)}px`;
       field.style.maxWidth = "none";
       field.style.maxHeight = "none";
+      field.style.transform = `translate(${Math.round(translateX)}px, ${Math.round(translateY)}px)`;
     };
 
     fit();
@@ -39,13 +75,10 @@ export default function FieldStage({ fieldRef, children }) {
       observer.disconnect();
       window.removeEventListener("orientationchange", fit);
     };
-  }, [fieldRef]);
+  }, [fieldRef, losYard]);
 
   return (
-    <section
-      ref={stageRef}
-      className="field-stage flex min-h-0 flex-1 items-center justify-center overflow-hidden px-1 py-1"
-    >
+    <section ref={stageRef} className="field-stage absolute inset-0 overflow-hidden">
       {children}
     </section>
   );

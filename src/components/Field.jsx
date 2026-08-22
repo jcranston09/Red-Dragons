@@ -25,7 +25,7 @@ export default function Field({ fieldRef, children, losYard }) {
   return (
     <div
       ref={fieldRef}
-      className="field-frame relative h-full max-h-full w-auto max-w-full aspect-[30/53] overflow-hidden rounded-[10px] turf-bg"
+      className="field-frame relative overflow-hidden rounded-[10px] turf-bg"
       role="application"
       aria-label="DYF 6v6 flag football field, 30 yards by 53 yards"
       onContextMenu={(e) => e.preventDefault()}

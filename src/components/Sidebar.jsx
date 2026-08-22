@@ -14,12 +14,25 @@ import { useState } from "react";
 import { DRAW_TOOLS } from "../data/tools.js";
 import { usePlaybook } from "../PlaybookContext.jsx";
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }) {
   const pb = usePlaybook();
   const [formationName, setFormationName] = useState("");
 
   return (
-    <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto scrollbar-thin p-3 pb-[max(1rem,env(safe-area-inset-bottom))] landscape:h-full landscape:border-l landscape:border-white/10 sm:p-4">
+    <aside className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto scrollbar-thin p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4">
+      {onClose ? (
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold uppercase tracking-wide">Play menu</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full bg-white/10 p-1.5 text-white/80 hover:bg-white/20"
+            aria-label="Close play menu"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
       <section className="rounded-2xl border border-white/10 bg-black/35 p-3">
         <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-dragon-lime/80">
           Play name

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { BookOpen, Eraser, Lightbulb, PenLine, Trash2, Undo2 } from "lucide-react";
+import { BookOpen, Eraser, Lightbulb, PanelRight, PenLine, Trash2, Undo2 } from "lucide-react";
 import Field from "./components/Field.jsx";
 import FieldStage from "./components/FieldStage.jsx";
 import PlayerToken from "./components/PlayerToken.jsx";
@@ -20,6 +20,7 @@ export default function App() {
   const [tab, setTab] = useState("designer");
   const [draft, setDraft] = useState(null);
   const [drawArmedId, setDrawArmedId] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const fieldRef = useRef(null);
   const draftRef = useRef(null);
   const pb = usePlaybook();
@@ -93,56 +94,9 @@ export default function App() {
       </header>
 
       {tab === "designer" ? (
-        <main className="mx-auto grid min-h-0 w-full max-w-[1600px] flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(9rem,38%)] landscape:grid-cols-[minmax(0,1fr)_min(20rem,38vw)] landscape:grid-rows-1">
-          <div className="flex min-h-0 min-w-0 flex-col">
-            <div className="flex shrink-0 flex-wrap items-center gap-1.5 px-2 py-1.5 landscape:py-1">
-              {DRAW_TOOLS.map((t) => {
-                const Icon = t.icon;
-                const on = drawType === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => pb.setTool(t.id)}
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                      on
-                        ? "bg-dragon-gold text-dragon-black"
-                        : "bg-white/10 text-white/80"
-                    }`}
-                  >
-                    <Icon className="h-3 w-3" />
-                    {t.label}
-                  </button>
-                );
-              })}
-              <span className="mx-1 hidden h-4 w-px bg-white/20 sm:block" />
-              <button
-                type="button"
-                onClick={pb.undoPath}
-                className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase"
-              >
-                <Undo2 className="h-3 w-3" /> Undo
-              </button>
-              <button
-                type="button"
-                onClick={pb.deleteSelectedPath}
-                className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase"
-              >
-                <Eraser className="h-3 w-3" /> Erase
-              </button>
-              <button
-                type="button"
-                onClick={pb.clearPaths}
-                className="inline-flex items-center gap-1 rounded-full bg-red-950/70 px-2 py-1 text-[11px] font-semibold uppercase text-red-100"
-              >
-                <Trash2 className="h-3 w-3" /> Clear
-              </button>
-            </div>
-            <p className="shrink-0 px-3 pb-1 text-[11px] leading-snug text-white/55 landscape:hidden">
-              Drag a player to move. To draw: tap once to select, tap again and hold, then drag.
-              Or drag the gold <span className="text-dragon-gold font-semibold">Draw</span> pill.
-            </p>
-            <FieldStage fieldRef={fieldRef}>
+        <main className="relative mx-auto flex min-h-0 w-full flex-1">
+          <div className="relative min-h-0 min-w-0 flex-1">
+            <FieldStage fieldRef={fieldRef} losYard={pb.losYard}>
               <Field fieldRef={fieldRef} losYard={pb.losYard}>
                 <DrawingCanvas
                   paths={pb.paths}
@@ -167,8 +121,74 @@ export default function App() {
                 ))}
               </Field>
             </FieldStage>
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]">
+              <div className="pointer-events-auto flex flex-wrap items-center gap-1 rounded-2xl bg-dragon-black/80 p-1.5 shadow-lg backdrop-blur-sm">
+                {DRAW_TOOLS.map((t) => {
+                  const Icon = t.icon;
+                  const on = drawType === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => pb.setTool(t.id)}
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                        on
+                          ? "bg-dragon-gold text-dragon-black"
+                          : "bg-white/10 text-white/80"
+                      }`}
+                    >
+                      <Icon className="h-3 w-3" />
+                      {t.label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={pb.undoPath}
+                  className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase"
+                >
+                  <Undo2 className="h-3 w-3" /> Undo
+                </button>
+                <button
+                  type="button"
+                  onClick={pb.deleteSelectedPath}
+                  className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase"
+                >
+                  <Eraser className="h-3 w-3" /> Erase
+                </button>
+                <button
+                  type="button"
+                  onClick={pb.clearPaths}
+                  className="inline-flex items-center gap-1 rounded-full bg-red-950/70 px-2 py-1 text-[11px] font-semibold uppercase text-red-100"
+                >
+                  <Trash2 className="h-3 w-3" /> Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(true)}
+                  className="ml-auto inline-flex items-center gap-1 rounded-full bg-dragon-gold px-2.5 py-1 text-[11px] font-bold uppercase text-dragon-black xl:hidden"
+                >
+                  <PanelRight className="h-3 w-3" /> Menu
+                </button>
+              </div>
+            </div>
           </div>
-          <Sidebar />
+          <div className="hidden h-full w-[22rem] shrink-0 border-l border-white/10 bg-dragon-black xl:block">
+            <Sidebar />
+          </div>
+          {menuOpen ? (
+            <div className="absolute inset-0 z-40 xl:hidden">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/55"
+                aria-label="Close play menu"
+                onClick={() => setMenuOpen(false)}
+              />
+              <div className="absolute inset-y-0 right-0 w-[min(22rem,92vw)] bg-dragon-black shadow-2xl">
+                <Sidebar onClose={() => setMenuOpen(false)} />
+              </div>
+            </div>
+          ) : null}
         </main>
       ) : null}
 
