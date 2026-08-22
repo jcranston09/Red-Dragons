@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { BookOpen, Eraser, Lightbulb, PanelRight, PenLine, Trash2, Undo2 } from "lucide-react";
+import { BookOpen, Eraser, Lightbulb, PanelRight, PenLine, Route, Trash2, Undo2 } from "lucide-react";
 import Field from "./components/Field.jsx";
 import FieldStage from "./components/FieldStage.jsx";
 import PlayerToken from "./components/PlayerToken.jsx";
@@ -7,11 +7,13 @@ import DrawingCanvas from "./components/DrawingCanvas.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import RulesTab from "./components/RulesTab.jsx";
 import SuggestionsTab from "./components/SuggestionsTab.jsx";
+import RoutesTab from "./components/RoutesTab.jsx";
 import { usePlaybook } from "./PlaybookContext.jsx";
 import { DRAW_TOOLS } from "./data/tools.js";
 
 const TABS = [
   { id: "designer", label: "Play designer", icon: PenLine },
+  { id: "routes", label: "Routes", icon: Route },
   { id: "rules", label: "Coach rules", icon: BookOpen },
   { id: "plays", label: "Suggested plays", icon: Lightbulb },
 ];
@@ -204,6 +206,11 @@ export default function App() {
         </main>
       ) : null}
 
+      {tab === "routes" ? (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <RoutesTab />
+        </div>
+      ) : null}
       {tab === "rules" ? (
         <div className="min-h-0 flex-1 overflow-auto">
           <RulesTab />
