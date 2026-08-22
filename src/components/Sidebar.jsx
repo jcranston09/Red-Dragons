@@ -1,7 +1,10 @@
 import {
   Baby,
   BookmarkPlus,
+  Cloud,
+  CloudOff,
   Plus,
+  RefreshCw,
   RotateCcw,
   Save,
   Trash2,
@@ -142,7 +145,7 @@ export default function Sidebar({ onClose }) {
         </h2>
         <p className="mb-2 text-[11px] leading-snug text-white/45">
           Click a look to snap every player to it at the current ball spot. Drag kids, then save that
-          alignment as your own button.
+          alignment as your own button. Custom looks sync to every coach.
         </p>
         <div className="mb-3 rounded-xl border border-white/10 bg-black/30 p-2.5">
           <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
@@ -267,12 +270,33 @@ export default function Sidebar({ onClose }) {
       </section>
 
       <section>
-        <h2 className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
-          <Users className="h-3 w-3" /> Saved plays
+        <h2 className="mb-2 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
+          <span className="inline-flex items-center gap-2">
+            <Users className="h-3 w-3" /> Saved plays
+          </span>
+          <button
+            type="button"
+            onClick={pb.refreshTeam}
+            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-white/70 hover:bg-white/20"
+          >
+            <RefreshCw className="h-3 w-3" /> Refresh
+          </button>
         </h2>
+        <p className="mb-2 flex items-center gap-1.5 text-[11px] text-white/55">
+          {pb.syncStatus === "live" ? (
+            <Cloud className="h-3.5 w-3.5 text-dragon-lime" />
+          ) : (
+            <CloudOff className="h-3.5 w-3.5 text-amber-300" />
+          )}
+          {pb.syncStatus === "live"
+            ? "Team playbook is live — saves show on every coach's phone."
+            : pb.syncStatus === "connecting"
+              ? "Connecting to the team playbook…"
+              : "Offline. Saves stay on this phone until you're back online."}
+        </p>
         {pb.savedPlays.length === 0 ? (
           <p className="rounded-xl border border-dashed border-white/15 px-3 py-4 text-xs text-white/45">
-            Nothing saved yet. Name a play and hit Save — it stays in this browser.
+            Nothing saved yet. Name a play and hit Save — it syncs to every coach.
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5">
