@@ -1,9 +1,12 @@
+import { routeArrow } from "../utils/path.js";
+
 const VIEW_W = 300;
 const VIEW_H = 270;
 const MARGIN_X = 18;
 const PLAY_W = VIEW_W - MARGIN_X * 2;
 const LOS_Y = 208;
 const YD = 9.2;
+const PLAYER_R = 16;
 
 function toXY(xYard, down) {
   return {
@@ -12,24 +15,11 @@ function toXY(xYard, down) {
   };
 }
 
-function arrowHead(points) {
-  if (points.length < 2) return "";
-  const a = points[points.length - 2];
-  const b = points[points.length - 1];
-  const angle = Math.atan2(b.y - a.y, b.x - a.x);
-  const len = 14;
-  const w = 8;
-  const x1 = b.x - len * Math.cos(angle) + w * Math.sin(angle);
-  const y1 = b.y - len * Math.sin(angle) - w * Math.cos(angle);
-  const x2 = b.x - len * Math.cos(angle) - w * Math.sin(angle);
-  const y2 = b.y - len * Math.sin(angle) + w * Math.cos(angle);
-  return `${b.x},${b.y} ${x1},${y1} ${x2},${y2}`;
-}
-
 export default function RouteCard({ route }) {
   const start = toXY(route.player.x, -route.player.behind);
   const pts = route.points.map((p) => toXY(p.x, p.down));
-  const pointStr = pts.map((p) => `${p.x},${p.y}`).join(" ");
+  const arrow = routeArrow(pts, { length: 16, width: 8 });
+  const pointStr = arrow.line.map((p) => `${p.x},${p.y}`).join(" ");
   const isRun = route.type === "run";
   const color = isRun ? "#ffffff" : "#f5d90a";
 
@@ -97,23 +87,10 @@ export default function RouteCard({ route }) {
             stroke="rgba(255,255,255,0.45)"
             strokeWidth="2"
           />
-          <polyline
-            points={pointStr}
-            fill="none"
-            stroke={color}
-            strokeWidth="6"
-            strokeDasharray={isRun ? "10 7" : undefined}
-            strokeLinejoin="miter"
-            strokeLinecap="butt"
-          />
-          {pts.slice(1, -1).map((pt, i) => (
-            <circle key={i} cx={pt.x} cy={pt.y} r="3.2" fill={color} />
-          ))}
-          <polygon points={arrowHead(pts)} fill={color} />
           <circle
             cx={start.x}
             cy={start.y}
-            r="16"
+            r={PLAYER_R}
             fill="#b91c1c"
             stroke="#fff"
             strokeWidth="3"
@@ -130,6 +107,19 @@ export default function RouteCard({ route }) {
           >
             {route.player.label}
           </text>
+          <polyline
+            points={pointStr}
+            fill="none"
+            stroke={color}
+            strokeWidth="6"
+            strokeDasharray={isRun ? "10 7" : undefined}
+            strokeLinejoin="miter"
+            strokeLinecap="butt"
+          />
+          {pts.slice(1, -1).map((pt, i) => (
+            <circle key={i} cx={pt.x} cy={pt.y} r="3.2" fill={color} />
+          ))}
+          {arrow.head ? <polygon points={arrow.head} fill={color} /> : null}
         </svg>
       </div>
       <p className="px-4 py-3 text-center text-sm text-white/75">{route.kidJob}</p>

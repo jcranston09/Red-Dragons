@@ -3,7 +3,8 @@ import { FIELD_WIDTH_YARDS, pctToYards, toPct } from "../utils/field.js";
 /**
  * Kinder route tree. Catalog cards use absolute yard marks (x 0–30, down from LOS).
  * Designer assignment uses `relative` { dx, down } from the selected player's spot.
- * +dx = toward the near sideline; −dx = toward the middle. Apply flips on the left hash.
+ * +dx = toward the near sideline; −dx = toward the middle. Apply flips on the left hash
+ * unless `mirror` is false (Sweeps keep the direction you picked).
  */
 export const ROUTE_TREE = [
   {
@@ -44,21 +45,20 @@ export const ROUTE_TREE = [
   },
   {
     id: "stop",
-    name: "Stop",
-    also: "Comeback",
+    name: "5-Yard Stop",
+    shortName: "5-Yd Stop",
+    also: "Hitch",
     player: { label: "WR", x: 21, behind: 0 },
     type: "route",
     points: [
       { x: 21, down: 0 },
-      { x: 21, down: 10 },
-      { x: 21, down: 7 },
+      { x: 21, down: 5 },
     ],
     relative: [
       { dx: 0, down: 0 },
-      { dx: 0, down: 10 },
-      { dx: 0, down: 7 },
+      { dx: 0, down: 5 },
     ],
-    kidJob: "Run 10 steps, then come back 3 steps toward Coach and look.",
+    kidJob: "Run 5 yards, stop, and look at Coach.",
   },
   {
     id: "go",
@@ -77,11 +77,33 @@ export const ROUTE_TREE = [
     kidJob: "Run straight as fast as you can. Do not stop. Look back at Coach.",
   },
   {
-    id: "wheel",
-    name: "RB Sweep",
-    also: "Wheel",
+    id: "sweep-left",
+    name: "RB Sweep Left",
+    shortName: "Sweep L",
+    also: "Wheel left",
+    player: { label: "RB", x: 17, behind: 2.5 },
+    type: "run",
+    mirror: false,
+    points: [
+      { x: 17, down: -2.5 },
+      { x: 6, down: 0.5 },
+      { x: 3, down: 12 },
+    ],
+    relative: [
+      { dx: 0, down: 0 },
+      { dx: -11, down: 3 },
+      { dx: -14, down: 14.5 },
+    ],
+    kidJob: "Take the toss, run to the left sideline, then turn up the field.",
+  },
+  {
+    id: "sweep-right",
+    name: "RB Sweep Right",
+    shortName: "Sweep R",
+    also: "Wheel right",
     player: { label: "RB", x: 13, behind: 2.5 },
     type: "run",
+    mirror: false,
     points: [
       { x: 13, down: -2.5 },
       { x: 24, down: 0.5 },
@@ -92,7 +114,7 @@ export const ROUTE_TREE = [
       { dx: 11, down: 3 },
       { dx: 14, down: 14.5 },
     ],
-    kidJob: "Take the toss, run to the sideline, then turn up the field.",
+    kidJob: "Take the toss, run to the right sideline, then turn up the field.",
   },
   {
     id: "post",
@@ -133,20 +155,18 @@ export const ROUTE_TREE = [
   {
     id: "quick",
     name: "Quick",
-    also: "Stop and turn",
+    also: "Step to Coach",
     player: { label: "WR", x: 21, behind: 0 },
     type: "route",
     points: [
       { x: 21, down: 0 },
-      { x: 21, down: 4 },
-      { x: 20.2, down: 3 },
+      { x: 20, down: 0 },
     ],
     relative: [
       { dx: 0, down: 0 },
-      { dx: 0, down: 4 },
-      { dx: -0.8, down: 3 },
+      { dx: -1, down: 0 },
     ],
-    kidJob: "Run 4 steps, stop, turn around, and look at Coach right away.",
+    kidJob: "Take one step toward Coach on the line. Do not run downfield.",
   },
 ];
 
@@ -157,7 +177,7 @@ function clamp(value, min, max) {
 /** Stamp a named route onto a token. Outs/flats go to the near sideline. */
 export function applyRouteToPlayer(player, route) {
   const { xYard, yardFromOwnGoal } = pctToYards(player.x, player.y);
-  const side = xYard < FIELD_WIDTH_YARDS / 2 ? -1 : 1;
+  const side = route.mirror === false ? 1 : xYard < FIELD_WIDTH_YARDS / 2 ? -1 : 1;
   const steps = route.relative ?? [{ dx: 0, down: 0 }];
   return steps.map(({ dx, down }) => {
     const x = clamp(xYard + dx * side, 0.8, FIELD_WIDTH_YARDS - 0.8);
