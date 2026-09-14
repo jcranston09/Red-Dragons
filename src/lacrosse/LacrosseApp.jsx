@@ -5,19 +5,46 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Library,
   Pause,
   Play,
   RotateCcw,
   TimerReset,
 } from "lucide-react";
 import DrillDiagram from "./DrillDiagram.jsx";
+import DrillBankPage from "./DrillBankPage.jsx";
 import { playAlarmBurst, playWarningBeep, unlockAudio } from "./alarm.js";
-import { CUES, DRILLS, PRACTICE_META, drillById, formatClock, nextDrill, prevDrill } from "./practicePlan.js";
+import { DRILL_BANK, drillById, stationDrills, togetherDrills } from "./drillBank.js";
+import {
+  CUES,
+  PRACTICE_META,
+  defaultSchedule,
+  drillForSlot,
+  formatClock,
+  loadCoach,
+  loadSchedule,
+  nextSlot,
+  otherCoachDrill,
+  practiceMinutes,
+  prevSlot,
+  saveCoach,
+  saveSchedule,
+  slotById,
+  slotLabel,
+  slotTitle,
+  withClocks,
+} from "./schedule.js";
 
 const NOTES_KEY = "red-dragons-lax-notes-v1";
 const REHEARSE_SEC = 15;
 
-function goDrill(id) {
+function goPlan() {
+  window.location.hash = "#/lax";
+}
+function goBank() {
+  window.location.hash = "#/lax/bank";
+}
+function goSlot(id) {
   window.location.hash = id ? `#/lax/${id}` : "#/lax";
 }
 
@@ -29,8 +56,9 @@ function loadNotes() {
   }
 }
 
-export default function LacrosseApp({ drillId, onBack }) {
-  const drill = drillId ? drillById(drillId) : null;
+export default function LacrosseApp({ view = "plan", slotId, onBack }) {
+  const [coachId, setCoachId] = useState(loadCoach);
+  const [slots, setSlots] = useState(loadSchedule);
   const [notes, setNotes] = useState(loadNotes);
   const [practiceElapsed, setPracticeElapsed] = useState(0);
   const [practiceOn, setPracticeOn] = useState(false);
@@ -43,15 +71,19 @@ export default function LacrosseApp({ drillId, onBack }) {
   const alarmTick = useRef(null);
   const wake = useRef(null);
 
-  const timedDrill = timedId ? drillById(timedId) : null;
-  const upcoming = drill ? nextDrill(drill.id) : DRILLS[0];
-  const previous = drill ? prevDrill(drill.id) : null;
-  const doneMin = useMemo(() => {
-    if (!drill) return 0;
-    const i = DRILLS.findIndex((d) => d.id === drill.id);
-    return DRILLS.slice(0, i).reduce((sum, d) => sum + d.minutes, 0);
-  }, [drill]);
+  const timedSlots = useMemo(() => withClocks(slots), [slots]);
+  const totalMin = practiceMinutes(slots);
+  const slot = slotId ? slotById(slots, slotId) : null;
+  const who = coachId ?? "both";
+  const drill = drillForSlot(slot, who);
+  const partner = otherCoachDrill(slot, who);
+  const timedSlot = timedId ? slotById(slots, timedId) : null;
+  const timedDrill = drillForSlot(timedSlot, who);
+  const upcoming = slot ? nextSlot(slots, slot.id) : timedSlots[0];
+  const previous = slot ? prevSlot(slots, slot.id) : null;
+  const doneMin = slot?.startMin ?? 0;
 
+  useEffect(() => saveSchedule(slots), [slots]);
   useEffect(() => {
     try {
       localStorage.setItem(NOTES_KEY, notes);
@@ -59,6 +91,11 @@ export default function LacrosseApp({ drillId, onBack }) {
       /* ignore */
     }
   }, [notes]);
+
+  function pickCoach(id) {
+    setCoachId(id);
+    saveCoach(id);
+  }
 
   useEffect(() => {
     if (!practiceOn) return undefined;
@@ -125,6 +162,7 @@ export default function LacrosseApp({ drillId, onBack }) {
   useEffect(() => () => stopAlarm(), [stopAlarm]);
 
   function startTimer(target, seconds = null) {
+    if (!target) return;
     unlockAudio();
     stopAlarm();
     warned.current = false;
@@ -133,12 +171,12 @@ export default function LacrosseApp({ drillId, onBack }) {
     setRemaining(sec);
     setRunning(true);
     setPracticeOn(true);
-    goDrill(target.id);
+    goSlot(target.id);
   }
 
   function startPractice() {
-    if (practiceOn && timedDrill) {
-      goDrill(timedDrill.id);
+    if (practiceOn && timedSlot) {
+      goSlot(timedSlot.id);
       if (!running && remaining > 0) {
         unlockAudio();
         setRunning(true);
@@ -147,19 +185,20 @@ export default function LacrosseApp({ drillId, onBack }) {
     }
     setRehearse(false);
     setPracticeElapsed(0);
-    startTimer(DRILLS[0], DRILLS[0].minutes * 60);
+    const first = timedSlots[0];
+    if (first) startTimer(first, first.minutes * 60);
   }
 
   function startRehearsal() {
     setRehearse(true);
     setPracticeElapsed(0);
-    startTimer(DRILLS[0], REHEARSE_SEC);
+    if (timedSlots[0]) startTimer(timedSlots[0], REHEARSE_SEC);
   }
 
   function addMinute() {
     unlockAudio();
     stopAlarm();
-    const id = timedId || drill?.id;
+    const id = timedId || slot?.id;
     if (id) setTimedId(id);
     setRemaining((n) => {
       const next = Math.max(0, n) + 60;
@@ -171,16 +210,32 @@ export default function LacrosseApp({ drillId, onBack }) {
   }
 
   function startNextFromAlarm() {
-    const nxt = timedDrill ? nextDrill(timedDrill.id) : upcoming;
+    const nxt = timedSlot ? nextSlot(slots, timedSlot.id) : upcoming;
     stopAlarm();
     if (nxt) startTimer(nxt);
   }
 
-  const practiceLeft = Math.max(0, PRACTICE_META.durationMin * 60 - practiceElapsed);
-  const drillClock = drill && timedId === drill.id ? remaining : drill ? drill.minutes * 60 : 0;
+  function patchSlot(id, patch) {
+    setSlots((prev) => {
+      const i = prev.findIndex((s) => s.id === id);
+      if (i < 0) return prev;
+      const next = prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s));
+      const cur = next[i];
+      const after = next[i + 1];
+      if (cur.type === "split" && cur.phase === "run" && after?.type === "split" && after.phase === "switch") {
+        next[i + 1] = { ...after, jack: cur.jack, sara: cur.sara, minutes: cur.minutes };
+      }
+      return next;
+    });
+  }
+
+  const practiceLeft = Math.max(0, totalMin * 60 - practiceElapsed);
+  const slotClock = slot && timedId === slot.id ? remaining : slot ? slot.minutes * 60 : 0;
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#07140c] text-white">
+      {!coachId ? <WhoGate onPick={pickCoach} /> : null}
+
       <header className="safe-header border-b border-white/10 bg-black/20">
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-2 md:px-5">
           <img
@@ -192,19 +247,17 @@ export default function LacrosseApp({ drillId, onBack }) {
             <h1 className="font-display text-lg font-extrabold uppercase leading-none tracking-wide md:text-2xl">
               {PRACTICE_META.title}
             </h1>
-            <p className="truncate text-[11px] text-white/60">{PRACTICE_META.subtitle}</p>
+            <p className="truncate text-[11px] text-white/60">
+              {who === "jack" ? "Jack’s track" : who === "sara" ? "Sara’s track" : "Full board"} · {totalMin} min
+            </p>
           </div>
+          <WhoSwitch value={who} onChange={pickCoach} />
           {rehearse ? (
             <span className="hidden rounded-full bg-dragon-gold/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-dragon-gold sm:inline">
               Rehearsal
             </span>
           ) : null}
-          <PracticeChip
-            elapsed={practiceElapsed}
-            left={practiceLeft}
-            on={practiceOn}
-            onStart={startPractice}
-          />
+          <PracticeChip elapsed={practiceElapsed} left={practiceLeft} on={practiceOn} totalMin={totalMin} onStart={startPractice} />
           {onBack ? (
             <button
               type="button"
@@ -217,68 +270,84 @@ export default function LacrosseApp({ drillId, onBack }) {
         </div>
       </header>
 
-      <DrillTabs
-        drillId={drillId}
+      <SlotTabs
+        view={view}
+        slotId={slotId}
+        slots={timedSlots}
+        coachId={who}
         timedId={timedId}
         remaining={remaining}
         running={running}
         alarmOn={alarmOn}
+        totalMin={totalMin}
       />
 
-      {timedDrill && timedId !== drillId ? (
+      {timedSlot && timedId !== slotId && view === "slot" ? (
         <button
           type="button"
-          onClick={() => goDrill(timedId)}
+          onClick={() => goSlot(timedId)}
           className="mx-auto mt-2 flex w-[calc(100%-1.5rem)] max-w-6xl items-center justify-between rounded-2xl border border-dragon-gold/40 bg-dragon-gold/10 px-3 py-2 text-left"
         >
           <span className="text-[11px] font-bold uppercase tracking-wide text-dragon-gold">
-            Timer on {timedDrill.short}
+            Timer on {slotTitle(timedSlot, who)}
           </span>
-          <span className="font-display text-xl font-extrabold tabular-nums text-dragon-gold">
-            {formatClock(remaining)}
-          </span>
+          <span className="font-display text-xl font-extrabold tabular-nums text-dragon-gold">{formatClock(remaining)}</span>
         </button>
       ) : null}
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-3 py-4 md:px-5">
-        {drill ? (
-          <DrillPage
+        {view === "bank" ? (
+          <DrillBankPage slots={slots} onSlots={setSlots} coachId={who} />
+        ) : slot && drill ? (
+          <SlotPage
+            slot={slot}
             drill={drill}
+            partner={partner}
+            coachId={who}
             previous={previous}
             upcoming={upcoming}
-            remaining={drillClock}
-            running={running && timedId === drill.id}
-            headerClock={drillClock}
+            remaining={slotClock}
+            running={running && timedId === slot.id}
+            headerClock={slotClock}
             doneMin={doneMin}
-            onStart={() => startTimer(drill)}
+            totalMin={totalMin}
+            onStart={() => startTimer(slot)}
             onPause={() => setRunning(false)}
             onReset={() => {
               stopAlarm();
               warned.current = false;
-              setTimedId(drill.id);
-              setRemaining(drill.minutes * 60);
+              setTimedId(slot.id);
+              setRemaining(slot.minutes * 60);
               setRunning(false);
             }}
             onAddMinute={addMinute}
           />
         ) : (
           <PlanOverview
+            slots={timedSlots}
+            coachId={who}
             notes={notes}
             onNotes={setNotes}
             onStartPractice={startPractice}
             onRehearse={startRehearsal}
-            onOpen={goDrill}
+            onOpen={goSlot}
             practiceOn={practiceOn}
             elapsed={practiceElapsed}
             rehearse={rehearse}
+            totalMin={totalMin}
+            onPatch={patchSlot}
+            onResetPlan={() => setSlots(defaultSchedule())}
           />
         )}
       </main>
 
       {alarmOn ? (
         <AlarmOverlay
+          slot={timedSlot}
           drill={timedDrill}
-          next={timedDrill ? nextDrill(timedDrill.id) : null}
+          partner={otherCoachDrill(timedSlot, who)}
+          coachId={who}
+          next={timedSlot ? nextSlot(slots, timedSlot.id) : null}
           onNext={startNextFromAlarm}
           onSnooze={addMinute}
           onStay={() => stopAlarm()}
@@ -288,53 +357,98 @@ export default function LacrosseApp({ drillId, onBack }) {
   );
 }
 
-function PracticeChip({ elapsed, left, on, onStart }) {
+function WhoGate({ onPick }) {
   return (
-    <button
-      type="button"
-      onClick={on ? undefined : onStart}
-      className="hidden rounded-full bg-white/10 px-3 py-1.5 text-left sm:block"
-      title={on ? "Practice clock" : "Start the 75-minute practice clock"}
-    >
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1f12] p-6 text-center">
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-dragon-gold">Girls lacrosse</p>
+        <h2 className="mt-1 font-display text-4xl font-extrabold uppercase">Who’s coaching?</h2>
+        <p className="mt-2 text-sm text-white/65">We’ll show your 10-minute track. Jack and Sara run stations at the same time.</p>
+        <div className="mt-5 grid gap-2">
+          <button type="button" onClick={() => onPick("sara")} className="rounded-2xl bg-dragon-gold px-4 py-3 font-extrabold uppercase tracking-wide text-dragon-black">
+            I’m Sara
+          </button>
+          <button type="button" onClick={() => onPick("jack")} className="rounded-2xl bg-white px-4 py-3 font-extrabold uppercase tracking-wide text-dragon-black">
+            I’m Jack
+          </button>
+          <button type="button" onClick={() => onPick("both")} className="rounded-2xl bg-white/10 px-4 py-3 text-sm font-bold uppercase tracking-wide">
+            Full board (both tracks)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WhoSwitch({ value, onChange }) {
+  return (
+    <div className="flex rounded-full bg-white/10 p-0.5 text-[10px] font-extrabold uppercase tracking-wide">
+      {[
+        { id: "sara", label: "Sara" },
+        { id: "jack", label: "Jack" },
+        { id: "both", label: "Both" },
+      ].map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          onClick={() => onChange(c.id)}
+          className={`rounded-full px-2 py-1 ${value === c.id ? "bg-dragon-gold text-dragon-black" : "text-white/70"}`}
+        >
+          {c.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PracticeChip({ elapsed, left, on, onStart, totalMin }) {
+  return (
+    <button type="button" onClick={on ? undefined : onStart} className="hidden rounded-full bg-white/10 px-3 py-1.5 text-left sm:block">
       <p className="text-[9px] font-bold uppercase tracking-wide text-white/50">Practice</p>
       <p className="font-display text-sm font-extrabold tabular-nums leading-none text-dragon-gold">
-        {on ? formatClock(elapsed) : `${PRACTICE_META.durationMin}:00`}
+        {on ? formatClock(elapsed) : `${totalMin}:00`}
       </p>
       {on ? <p className="text-[9px] text-white/45">{formatClock(left)} left</p> : null}
     </button>
   );
 }
 
-function DrillTabs({ drillId, timedId, remaining, running, alarmOn }) {
+function SlotTabs({ view, slotId, slots, coachId, timedId, remaining, running, alarmOn, totalMin }) {
   return (
     <div className="border-b border-white/10 bg-black/10">
       <div className="mx-auto flex max-w-6xl gap-2 overflow-x-auto px-3 py-2 md:px-5">
-        <TabCard
-          active={!drillId}
-          onClick={() => goDrill(null)}
-          label="Plan"
-          clock={`${PRACTICE_META.durationMin} min`}
-        >
+        <TabCard active={view === "plan"} onClick={goPlan} label="Plan" clock={`${totalMin} min`}>
           <div className="flex h-full items-center justify-center bg-[#0b1f12]">
             <ClipboardList className="h-8 w-8 text-dragon-gold" />
           </div>
         </TabCard>
-        {DRILLS.map((d) => (
-          <TabCard
-            key={d.id}
-            active={drillId === d.id}
-            onClick={() => goDrill(d.id)}
-            label={d.short}
-            clock={
-              timedId === d.id
-                ? `${running || alarmOn ? "● " : ""}${formatClock(remaining)}`
-                : `${d.minutes} min`
-            }
-            live={timedId === d.id && (running || alarmOn)}
-          >
-            <DrillDiagram diagram={d.diagram} compact />
-          </TabCard>
-        ))}
+        <TabCard active={view === "bank"} onClick={goBank} label="Bank" clock={`${DRILL_BANK.length} drills`}>
+          <div className="flex h-full items-center justify-center bg-[#0b1f12]">
+            <Library className="h-8 w-8 text-dragon-gold" />
+          </div>
+        </TabCard>
+        {slots.map((s) => {
+          const live = timedId === s.id && (running || alarmOn);
+          return (
+            <TabCard
+              key={s.id}
+              active={view === "slot" && slotId === s.id}
+              onClick={() => goSlot(s.id)}
+              label={slotTitle(s, coachId)}
+              clock={timedId === s.id ? `${live ? "● " : ""}${formatClock(remaining)}` : `${s.minutes} min`}
+              live={live}
+            >
+              {s.type === "split" && coachId === "both" ? (
+                <div className="grid h-full grid-cols-2">
+                  <DrillDiagram diagram={drillById(s.sara)?.diagram} compact />
+                  <DrillDiagram diagram={drillById(s.jack)?.diagram} compact />
+                </div>
+              ) : (
+                <DrillDiagram diagram={drillForSlot(s, coachId)?.diagram} compact />
+              )}
+            </TabCard>
+          );
+        })}
       </div>
     </div>
   );
@@ -360,14 +474,34 @@ function TabCard({ active, onClick, label, clock, children, live }) {
   );
 }
 
-function PlanOverview({ notes, onNotes, onStartPractice, onRehearse, onOpen, practiceOn, elapsed, rehearse }) {
+function PlanOverview({
+  slots,
+  coachId,
+  notes,
+  onNotes,
+  onStartPractice,
+  onRehearse,
+  onOpen,
+  practiceOn,
+  elapsed,
+  rehearse,
+  totalMin,
+  onPatch,
+  onResetPlan,
+}) {
+  const stations = stationDrills();
+  const groupDrills = togetherDrills();
+  const runSplits = slots.filter((s) => s.type === "split" && s.phase !== "switch");
+  const saraLine = [...new Set(runSplits.map((s) => drillById(s.sara)?.short).filter(Boolean))].join(" · ");
+  const jackLine = [...new Set(runSplits.map((s) => drillById(s.jack)?.short).filter(Boolean))].join(" · ");
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
       <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-dragon-gold">Tonight’s plan</p>
-            <h2 className="font-display text-3xl font-extrabold uppercase">75-minute practice</h2>
+            <h2 className="font-display text-3xl font-extrabold uppercase">{totalMin}-minute practice</h2>
             <p className="mt-1 text-sm text-white/65">{PRACTICE_META.format}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -389,39 +523,90 @@ function PlanOverview({ notes, onNotes, onStartPractice, onRehearse, onOpen, pra
             </button>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-white/40">
-          Rehearse runs every drill at 15 seconds so you can hear the rotate alarm before the girls arrive.
-        </p>
 
         <dl className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-          <Stat label="Roster" value={`${PRACTICE_META.roster}`} />
-          <Stat label="Coaches" value={`${PRACTICE_META.coaches}`} />
-          <Stat label="Per line" value="3–4 girls" />
-          <Stat label="Stations" value="Split A / B" />
+          <Stat label="Roster" value="22" />
+          <Stat label="Sara" value={saraLine || "—"} />
+          <Stat label="Jack" value={jackLine || "—"} />
+          <Stat label="Stations" value="10 min" />
         </dl>
+        <p className="mt-2 text-[11px] text-white/40">
+          First practice is loaded. Change any slot from the lists, or open the Bank tab to browse every drill.
+        </p>
 
-        <ol className="mt-4 divide-y divide-white/10">
-          {DRILLS.map((d, i) => (
-            <li key={d.id}>
-              <button type="button" onClick={() => onOpen(d.id)} className="flex w-full items-center gap-3 py-3 text-left hover:bg-white/[0.03]">
-                <span className="w-14 shrink-0 font-display text-lg font-extrabold tabular-nums text-dragon-gold">
-                  {d.clock.split("–")[0]}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-bold">{d.name}</span>
-                  <span className="block text-[11px] uppercase tracking-wide text-white/50">
-                    {d.minutes} min • {d.group} • {d.coach}
-                  </span>
-                </span>
-                <span className="hidden h-12 w-20 overflow-hidden rounded-xl sm:block">
-                  <DrillDiagram diagram={d.diagram} compact />
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-white/40" />
-                <span className="sr-only">Open drill {i + 1}</span>
-              </button>
-            </li>
-          ))}
+        <ol className="mt-3 divide-y divide-white/10">
+          {slots.map((s) => {
+            const copy = slotLabel(s, coachId);
+            return (
+              <li key={s.id} className="py-3">
+                <div className="flex items-start gap-3">
+                  <button type="button" onClick={() => onOpen(s.id)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                    <span className="w-14 shrink-0 font-display text-lg font-extrabold tabular-nums text-dragon-gold">
+                      {s.clock.split("–")[0]}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-bold">{copy.title}</span>
+                      <span className="block text-[11px] uppercase tracking-wide text-white/50">
+                        {s.minutes} min · {copy.detail}
+                      </span>
+                    </span>
+                    <span className="hidden h-12 w-20 overflow-hidden rounded-xl sm:block">
+                      <DrillDiagram diagram={drillForSlot(s, coachId)?.diagram} compact />
+                    </span>
+                    <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-white/40" />
+                  </button>
+                </div>
+                {s.type === "together" ? (
+                  <select
+                    value={s.drillId}
+                    onChange={(e) => onPatch(s.id, { drillId: e.target.value })}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-2 py-1.5 text-xs"
+                  >
+                    {groupDrills.concat(stations).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <label className="text-[10px] font-bold uppercase tracking-wide text-white/40">
+                      Sara
+                      <select
+                        value={s.sara}
+                        onChange={(e) => onPatch(s.id, { sara: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white"
+                      >
+                        {stations.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-[10px] font-bold uppercase tracking-wide text-white/40">
+                      Jack
+                      <select
+                        value={s.jack}
+                        onChange={(e) => onPatch(s.id, { jack: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white"
+                      >
+                        {stations.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ol>
+        <button type="button" onClick={onResetPlan} className="mt-3 text-[11px] font-bold uppercase tracking-wide text-white/45 hover:text-white">
+          Reset to first practice
+        </button>
       </section>
 
       <aside className="space-y-4">
@@ -437,20 +622,21 @@ function PlanOverview({ notes, onNotes, onStartPractice, onRehearse, onOpen, pra
           </ul>
         </section>
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-          <h3 className="font-display text-xl font-extrabold uppercase">Bring</h3>
-          <ul className="mt-2 space-y-1 text-sm text-white/75">
-            {PRACTICE_META.equipment.map((item) => (
-              <li key={item}>• {item}</li>
-            ))}
-          </ul>
+          <h3 className="font-display text-xl font-extrabold uppercase">Tracks</h3>
+          <p className="mt-2 text-sm text-white/75">
+            <strong className="text-white">Sara:</strong> {saraLine || "pick from the bank"}.
+          </p>
+          <p className="mt-1 text-sm text-white/75">
+            <strong className="text-white">Jack:</strong> {jackLine || "pick from the bank"}.
+          </p>
+          <p className="mt-2 text-xs text-white/50">After each 10-minute station the alarm means switch groups, not a new drill.</p>
         </section>
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
           <h3 className="font-display text-xl font-extrabold uppercase">Coach notes</h3>
-          <p className="mt-1 text-[11px] text-white/45">Stays on this phone. Who’s out, who needs extra GB reps, weather.</p>
           <textarea
             value={notes}
             onChange={(e) => onNotes(e.target.value)}
-            rows={6}
+            rows={5}
             placeholder="Tap to jot a note…"
             className="mt-3 w-full resize-y rounded-2xl border border-white/10 bg-black/30 p-3 text-sm text-white placeholder:text-white/30 focus:border-dragon-gold/50 focus:outline-none"
           />
@@ -469,42 +655,84 @@ function Stat({ label, value }) {
   );
 }
 
-function DrillPage({
+function SlotPage({
+  slot,
   drill,
+  partner,
+  coachId,
   previous,
   upcoming,
   remaining,
   running,
   headerClock,
   doneMin,
+  totalMin,
   onStart,
   onPause,
   onReset,
   onAddMinute,
 }) {
-  const live = running || remaining !== drill.minutes * 60;
+  const live = running || remaining !== slot.minutes * 60;
+  const otherName = coachId === "sara" ? "Jack" : "Sara";
+  const nextDrill = upcoming ? drillForSlot(upcoming, coachId) : null;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
       <section className="space-y-3">
-        <div className="overflow-hidden rounded-3xl border border-white/10">
-          <DrillDiagram diagram={drill.diagram} />
-        </div>
+        {slot.type === "split" && coachId === "both" ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-dragon-gold">Sara</p>
+              <div className="overflow-hidden rounded-3xl border border-white/10">
+                <DrillDiagram diagram={drillById(slot.sara)?.diagram} />
+              </div>
+            </div>
+            <div>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-dragon-gold">Jack</p>
+              <div className="overflow-hidden rounded-3xl border border-white/10">
+                <DrillDiagram diagram={drillById(slot.jack)?.diagram} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-3xl border border-white/10">
+            <DrillDiagram diagram={drill.diagram} />
+          </div>
+        )}
         <div className="flex gap-2">
-          <NavChip disabled={!previous} onClick={() => previous && goDrill(previous.id)} icon={ChevronLeft} label={previous ? previous.short : "Start"} />
-          <NavChip disabled={!upcoming} onClick={() => upcoming && goDrill(upcoming.id)} icon={ChevronRight} label={upcoming ? upcoming.short : "Done"} flip />
+          <NavChip
+            disabled={!previous}
+            onClick={() => previous && goSlot(previous.id)}
+            icon={ChevronLeft}
+            label={previous ? slotTitle(previous, coachId) : "Start"}
+          />
+          <NavChip
+            disabled={!upcoming}
+            onClick={() => upcoming && goSlot(upcoming.id)}
+            icon={ChevronRight}
+            label={upcoming ? slotTitle(upcoming, coachId) : "Done"}
+            flip
+          />
         </div>
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-5">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-dragon-gold">
-          {drill.clock} • {drill.group} • {drill.coach}
+          {slot.clock} · {slot.minutes} min · {slot.type === "split" ? (slot.phase === "switch" ? "Switch groups" : "Stations") : "Full group"}
         </p>
         <h2 className="mt-1 font-display text-3xl font-extrabold uppercase leading-none">{drill.name}</h2>
+        {partner ? (
+          <p className="mt-2 text-sm text-white/60">
+            {otherName} is running <span className="font-bold text-white">{partner.name}</span> at the same time.
+          </p>
+        ) : null}
+        {slot.phase === "switch" ? (
+          <p className="mt-2 rounded-2xl bg-white/10 px-3 py-2 text-sm">Same drill. Send your group to the other coach. Take theirs. 10 more minutes.</p>
+        ) : null}
         <p className="mt-2 rounded-2xl bg-dragon-gold/15 px-3 py-2 text-sm font-semibold text-dragon-gold">“{drill.say}”</p>
 
         <div className="mt-4 rounded-3xl bg-black/40 px-4 py-5 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-white/45">{live ? "Time left" : "This drill"}</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-white/45">{live ? "Time left" : "This station"}</p>
           <p className="font-display text-7xl font-extrabold tabular-nums leading-none text-dragon-gold" aria-live="polite">
             {formatClock(headerClock)}
           </p>
@@ -515,38 +743,34 @@ function DrillPage({
               <TimerBtn
                 onClick={onStart}
                 icon={Play}
-                label={live && remaining > 0 ? "Resume" : `Start ${formatClock(drill.minutes * 60)}`}
+                label={live && remaining > 0 ? "Resume" : `Start ${formatClock(slot.minutes * 60)}`}
                 primary
               />
             )}
             <TimerBtn onClick={onReset} icon={RotateCcw} label="Reset" />
             <TimerBtn onClick={onAddMinute} icon={TimerReset} label="+1 min" />
           </div>
-          <p className="mt-3 text-[11px] text-white/40">
-            Alarm + vibrate when it hits 0. One-minute warning beep. Practice clock starts with the first timer.
-          </p>
         </div>
 
-        <Progress doneMin={doneMin} minutes={drill.minutes} />
-
+        <Progress doneMin={doneMin} minutes={slot.minutes} totalMin={totalMin} />
         <Block title="Set it" items={drill.setup} />
         <Block title="How" items={drill.how} numbered />
         <Block title="Watch for" items={drill.focus} />
+        {nextDrill ? <p className="mt-4 text-xs text-white/45">On deck: {nextDrill.name}</p> : null}
       </section>
     </div>
   );
 }
 
-function Progress({ doneMin, minutes }) {
-  const total = PRACTICE_META.durationMin;
-  const start = (doneMin / total) * 100;
-  const width = (minutes / total) * 100;
+function Progress({ doneMin, minutes, totalMin }) {
+  const start = totalMin ? (doneMin / totalMin) * 100 : 0;
+  const width = totalMin ? (minutes / totalMin) * 100 : 0;
   return (
     <div className="mt-4">
       <div className="mb-1 flex justify-between text-[10px] font-bold uppercase tracking-wide text-white/40">
         <span>Practice</span>
         <span>
-          min {doneMin}–{doneMin + minutes} of {total}
+          min {doneMin}–{doneMin + minutes} of {totalMin}
         </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-white/10">
@@ -607,29 +831,39 @@ function TimerBtn({ onClick, icon: Icon, label, primary }) {
   );
 }
 
-function AlarmOverlay({ drill, next, onNext, onSnooze, onStay }) {
+function AlarmOverlay({ slot, drill, partner, coachId, next, onNext, onSnooze, onStay }) {
+  const nxtDrill = next ? drillForSlot(next, coachId) : null;
+  const switchNow = slot?.phase === "run" && next?.phase === "switch";
   return (
     <div className="lax-alarm-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <div className="lax-alarm-pulse w-full max-w-md rounded-3xl border-2 border-dragon-gold bg-[#1a0a0a] p-6 text-center shadow-2xl">
         <Bell className="mx-auto h-10 w-10 text-dragon-gold" />
-        <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.2em] text-dragon-gold">Time — rotate</p>
-        <h2 className="mt-1 font-display text-4xl font-extrabold uppercase leading-none">{drill?.short ?? "Drill"} is over</h2>
-        <p className="mt-3 text-sm text-white/70">Move the girls to the next drill. Alarm keeps sounding until you tap.</p>
-        {next ? (
+        <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.2em] text-dragon-gold">
+          {switchNow ? "Time — switch groups" : "Time — rotate"}
+        </p>
+        <h2 className="mt-1 font-display text-4xl font-extrabold uppercase leading-none">
+          {switchNow ? "Send them across" : `${drill?.short ?? "Drill"} is over`}
+        </h2>
+        <p className="mt-3 text-sm text-white/70">
+          {switchNow
+            ? `Keep ${drill?.short}. Take the other group. ${partner ? `Other coach stays on ${partner.short}.` : ""}`
+            : "Move to the next slot. Alarm keeps sounding until you tap."}
+        </p>
+        {nxtDrill ? (
           <p className="mt-2 text-sm font-bold text-white">
-            Next: {next.name} <span className="text-white/50">({next.minutes} min • {next.coach})</span>
+            Next: {nxtDrill.name} <span className="text-white/50">({next.minutes} min)</span>
           </p>
         ) : (
           <p className="mt-2 text-sm font-bold text-dragon-gold">Practice complete. High-fives.</p>
         )}
         <div className="mt-5 flex flex-col gap-2">
-          {next ? (
+          {nxtDrill ? (
             <button
               type="button"
               onClick={onNext}
               className="rounded-full bg-dragon-gold px-4 py-3 text-sm font-extrabold uppercase tracking-wide text-dragon-black"
             >
-              Start next • {next.short}
+              Start next · {nxtDrill.short}
             </button>
           ) : null}
           <button type="button" onClick={onSnooze} className="rounded-full bg-white/10 px-4 py-3 text-sm font-bold uppercase tracking-wide">

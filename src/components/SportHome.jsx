@@ -12,8 +12,8 @@ const SPORTS = [
     href: "#/lax",
     kicker: "3rd & 4th Grade • 75 min",
     title: "Girls Lacrosse",
-    blurb: "Tonight’s practice plan with a timer on every drill, a picture of the setup, and an alarm when it’s time to rotate.",
-    meta: "22 players • 2 coaches",
+    blurb: "Jack and Sara’s 10-minute stations, a drill bank, and an alarm when it’s time to switch groups.",
+    meta: "22 players • Jack & Sara",
   },
 ];
 

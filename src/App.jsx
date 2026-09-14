@@ -7,8 +7,12 @@ function parseHash() {
   const raw = (window.location.hash || "#/").replace(/^#/, "") || "/";
   const parts = raw.split("/").filter(Boolean);
   if (parts[0] === "flag") return { sport: "flag" };
-  if (parts[0] === "lax") return { sport: "lax", drillId: parts[1] || null };
-  return { sport: null, drillId: null };
+  if (parts[0] === "lax") {
+    if (parts[1] === "bank") return { sport: "lax", view: "bank" };
+    if (parts[1]) return { sport: "lax", view: "slot", slotId: parts[1] };
+    return { sport: "lax", view: "plan" };
+  }
+  return { sport: null };
 }
 
 export default function App() {
@@ -25,6 +29,8 @@ export default function App() {
   }
 
   if (route.sport === "flag") return <FlagFootballApp onBack={goHome} />;
-  if (route.sport === "lax") return <LacrosseApp drillId={route.drillId} onBack={goHome} />;
+  if (route.sport === "lax") {
+    return <LacrosseApp view={route.view} slotId={route.slotId} onBack={goHome} />;
+  }
   return <SportHome />;
 }

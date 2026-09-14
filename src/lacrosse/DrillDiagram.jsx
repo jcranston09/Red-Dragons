@@ -191,6 +191,128 @@ function WestGennyDiagram() {
   );
 }
 
+function HipposDiagram() {
+  return (
+    <FieldFrame>
+      <rect x="28" y="70" width="36" height="28" fill="#111" opacity="0.45" stroke="#f5d90a" />
+      <rect x="256" y="70" width="36" height="28" fill="#111" opacity="0.45" stroke="#f5d90a" />
+      <Ball x="120" y="120" />
+      <Ball x="160" y="90" />
+      <Ball x="200" y="130" />
+      <Ball x="150" y="150" />
+      <Player x="70" y="160" label="S" />
+      <Player x="250" y="160" label="J" />
+      <Arrow d="M80 150 L130 125" />
+      <Arrow d="M240 150 L190 125" />
+      <text x="160" y="28" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="800">
+        SCOOP • CRADLE • BUCKET
+      </text>
+    </FieldFrame>
+  );
+}
+
+function PassingDiagram() {
+  return (
+    <FieldFrame>
+      <Player x="80" y="70" label="1" />
+      <Player x="240" y="70" label="2" />
+      <Player x="80" y="150" label="3" />
+      <Player x="240" y="150" label="4" />
+      <Arrow d="M95 70 L225 70" />
+      <Arrow d="M225 150 L95 150" />
+      <Ball x="155" y="70" />
+      <text x="160" y="28" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="800">
+        STICK IN THE BOX • HIT HER IN STRIDE
+      </text>
+    </FieldFrame>
+  );
+}
+
+function TriangleDiagram() {
+  return (
+    <FieldFrame>
+      <Player x="160" y="50" label="1" />
+      <Player x="80" y="160" label="2" />
+      <Player x="240" y="160" label="3" />
+      <Arrow d="M150 62 L90 148" />
+      <Arrow d="M95 160 L225 160" />
+      <Arrow d="M230 148 L170 62" />
+      <Ball x="160" y="108" />
+      <text x="160" y="28" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="800">
+        PASS AND MOVE
+      </text>
+    </FieldFrame>
+  );
+}
+
+function ShotDiagram() {
+  return (
+    <FieldFrame>
+      <ellipse cx="268" cy="100" rx="28" ry="52" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" />
+      <rect x="292" y="78" width="12" height="44" fill="#fff" opacity="0.85" />
+      <Cone x="200" y="100" />
+      <Player x="70" y="150" label="G" />
+      <Player x="40" y="80" fill="#f5d90a" label="C" />
+      <Arrow d="M80 140 L195 105" />
+      <Arrow d="M210 100 L255 100" />
+      <Ball x="90" y="145" />
+      <text x="140" y="28" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="800">
+        CUT • CATCH • SHOOT
+      </text>
+    </FieldFrame>
+  );
+}
+
+function DodgeDiagram() {
+  return (
+    <FieldFrame>
+      <ellipse cx="268" cy="100" rx="24" ry="46" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2" />
+      <rect x="290" y="80" width="12" height="40" fill="#fff" opacity="0.85" />
+      <Player x="70" y="120" label="A" />
+      <Cone x="160" y="110" />
+      <Player x="160" y="70" fill="#111" label="D" />
+      <Arrow d="M85 118 C 130 118, 150 70, 230 95" />
+      <Ball x="82" y="108" />
+      <text x="150" y="28" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="800">
+        PROTECT • DODGE • ACCELERATE
+      </text>
+    </FieldFrame>
+  );
+}
+
+function SharksDiagram() {
+  return (
+    <FieldFrame>
+      <rect x="20" y="40" width="50" height="120" fill="rgba(245,217,10,0.12)" />
+      <rect x="250" y="40" width="50" height="120" fill="rgba(245,217,10,0.12)" />
+      <Player x="45" y="80" label="M" />
+      <Player x="45" y="130" label="M" />
+      <Player x="160" y="70" fill="#111" label="S" />
+      <Player x="180" y="140" fill="#111" label="S" />
+      <Arrow d="M60 80 L245 80" />
+      <text x="160" y="28" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="800">
+        CRADLE ACROSS • DON’T DROP
+      </text>
+    </FieldFrame>
+  );
+}
+
+function HuddleDiagram() {
+  return (
+    <FieldFrame>
+      <Player x="160" y="70" fill="#f5d90a" label="C" />
+      <Player x="110" y="120" />
+      <Player x="160" y="140" />
+      <Player x="210" y="120" />
+      <Player x="80" y="150" />
+      <Player x="240" y="150" />
+      <text x="160" y="28" textAnchor="middle" fill="#f5d90a" fontSize="12" fontWeight="800">
+        STICKS IN • DRAGONS
+      </text>
+    </FieldFrame>
+  );
+}
+
 const DIAGRAMS = {
   warmup: WarmupDiagram,
   scoop: ScoopDiagram,
@@ -199,6 +321,13 @@ const DIAGRAMS = {
   fastbreak: FastBreakDiagram,
   relay: RelayDiagram,
   westGenny: WestGennyDiagram,
+  hippos: HipposDiagram,
+  passing: PassingDiagram,
+  triangle: TriangleDiagram,
+  shot: ShotDiagram,
+  dodge: DodgeDiagram,
+  sharks: SharksDiagram,
+  huddle: HuddleDiagram,
 };
 
 export default function DrillDiagram({ diagram, compact = false }) {
