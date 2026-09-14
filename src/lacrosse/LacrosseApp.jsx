@@ -234,9 +234,7 @@ export default function LacrosseApp({ view = "plan", slotId, onBack }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#07140c] text-white">
-      {!coachId ? <WhoGate onPick={pickCoach} /> : null}
-
-      <header className="safe-header border-b border-white/10 bg-black/20">
+      <header className="safe-header relative z-10 border-b border-white/10 bg-black/20">
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-2 md:px-5">
           <img
             src="./logo.png"
@@ -353,13 +351,14 @@ export default function LacrosseApp({ view = "plan", slotId, onBack }) {
           onStay={() => stopAlarm()}
         />
       ) : null}
+      {!coachId ? <WhoGate onPick={pickCoach} /> : null}
     </div>
   );
 }
 
 function WhoGate({ onPick }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1f12] p-6 text-center">
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-dragon-gold">Girls lacrosse</p>
         <h2 className="mt-1 font-display text-4xl font-extrabold uppercase">Who’s coaching?</h2>
