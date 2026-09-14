@@ -177,7 +177,7 @@ export default function LacrosseApp({ drillId, onBack }) {
   }
 
   const practiceLeft = Math.max(0, PRACTICE_META.durationMin * 60 - practiceElapsed);
-  const headerClock = running || remaining > 0 ? remaining : drill ? drill.minutes * 60 : 0;
+  const drillClock = drill && timedId === drill.id ? remaining : drill ? drill.minutes * 60 : 0;
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#07140c] text-white">
@@ -246,9 +246,9 @@ export default function LacrosseApp({ drillId, onBack }) {
             drill={drill}
             previous={previous}
             upcoming={upcoming}
-            remaining={timedId === drill.id ? remaining : drill.minutes * 60}
+            remaining={drillClock}
             running={running && timedId === drill.id}
-            headerClock={timedId === drill.id ? headerClock : drill.minutes * 60}
+            headerClock={drillClock}
             doneMin={doneMin}
             onStart={() => startTimer(drill)}
             onPause={() => setRunning(false)}

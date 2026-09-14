@@ -19,8 +19,8 @@ const SPORTS = [
 
 export default function SportHome() {
   return (
-    <div className="min-h-dvh bg-[#07140c] text-white">
-      <header className="safe-header mx-auto flex max-w-3xl items-center gap-3 px-4 pb-2 pt-4">
+    <div className="flex min-h-dvh flex-col bg-[#07140c] text-white">
+      <header className="safe-header mx-auto flex w-full max-w-3xl items-center gap-3 px-4 pb-2 pt-4">
         <img
           src="./logo.png"
           alt="Carroll Southlake Red Dragons"
@@ -32,14 +32,14 @@ export default function SportHome() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 pb-12 pt-6">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 pb-16 pt-6">
         <p className="mb-5 text-sm text-white/70">Pick the sport you’re coaching today.</p>
         <div className="grid gap-4 sm:grid-cols-2">
           {SPORTS.map((sport) => (
             <a
               key={sport.href}
               href={sport.href}
-              className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-xl transition hover:border-dragon-gold/60 hover:bg-white/[0.07]"
+              className="group relative min-h-[16rem] overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-xl transition hover:border-dragon-gold/60 hover:bg-white/[0.07]"
             >
               <div className="pointer-events-none absolute inset-0 turf-bg opacity-20" />
               <div className="relative">
