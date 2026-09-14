@@ -39,7 +39,7 @@ export default function SportHome() {
             <a
               key={sport.href}
               href={sport.href}
-              className="group relative min-h-[16rem] overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-xl transition hover:border-dragon-gold/60 hover:bg-white/[0.07]"
+              className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-xl transition hover:border-dragon-gold/60 hover:bg-white/[0.07] sm:min-h-[16rem] sm:p-6"
             >
               <div className="pointer-events-none absolute inset-0 turf-bg opacity-20" />
               <div className="relative">
